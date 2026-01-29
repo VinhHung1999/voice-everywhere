@@ -27,6 +27,8 @@ final class VoiceController: @unchecked Sendable {
 
     private var isAudioRunning = false
     private var isStopping = false
+    private var finishingTimer: DispatchSourceTimer?
+    private static let finishingTimeoutSec: Double = 5
 
     init(languageHints: [String]) {
         self.languageHints = languageHints
@@ -108,6 +110,26 @@ final class VoiceController: @unchecked Sendable {
             ProcessInfo.processInfo.endActivity(activityToken)
             self.activityToken = nil
         }
+        startFinishingTimeout()
+    }
+
+    private func startFinishingTimeout() {
+        cancelFinishingTimeout()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + Self.finishingTimeoutSec)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            guard case .finishing = self.currentState else { return }
+            VELog.write("Finishing timeout reached (\(Self.finishingTimeoutSec)s), force closing")
+            self.streamer.forceClose()
+        }
+        timer.resume()
+        finishingTimer = timer
+    }
+
+    private func cancelFinishingTimeout() {
+        finishingTimer?.cancel()
+        finishingTimer = nil
     }
 
     /// Send buffered text to LLM and inject the result.
@@ -149,6 +171,7 @@ final class VoiceController: @unchecked Sendable {
         case .finishing:
             currentState = .finishing
         case .closed:
+            cancelFinishingTimeout()
             if isAudioRunning {
                 capture.stop()
                 isAudioRunning = false
@@ -163,6 +186,7 @@ final class VoiceController: @unchecked Sendable {
             llmConfig = nil
             currentState = .idle
         case .failed(let error):
+            cancelFinishingTimeout()
             if isAudioRunning {
                 capture.stop()
                 isAudioRunning = false

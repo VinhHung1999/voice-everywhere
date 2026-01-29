@@ -92,14 +92,40 @@ final class SonioxStreamer: NSObject, @unchecked Sendable {
             guard let self else { return }
             self.isGracefullyStopping = true
             self.onStateChange?(.finishing)
+
+            guard let activeTask = self.task else {
+                self.logger.info("Soniox: no active task, closing immediately")
+                VELog.write("Soniox no active task on stop, closing immediately")
+                self.onStateChange?(.closed)
+                return
+            }
+
             // Empty frame signals graceful finish
             self.logger.info("Soniox: sending graceful stop frame")
             VELog.write("Soniox sending stop frame")
-            self.task?.send(.data(Data())) { _ in
+            activeTask.send(.data(Data())) { [weak self] error in
+                guard let self else { return }
+                if let error {
+                    self.logger.warning("Soniox: stop frame send failed: \(error.localizedDescription, privacy: .public)")
+                    VELog.write("Soniox stop frame send failed: \(error.localizedDescription)")
+                }
                 self.task?.cancel(with: .goingAway, reason: nil)
                 self.task = nil
                 self.onStateChange?(.closed)
             }
+        }
+    }
+
+    /// Force-close the connection without waiting for a graceful stop.
+    func forceClose() {
+        sendQueue.async { [weak self] in
+            guard let self else { return }
+            self.isGracefullyStopping = true
+            self.logger.warning("Soniox: force closing connection")
+            VELog.write("Soniox force closing connection")
+            self.task?.cancel(with: .goingAway, reason: nil)
+            self.task = nil
+            self.onStateChange?(.closed)
         }
     }
 
