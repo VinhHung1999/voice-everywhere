@@ -1,37 +1,83 @@
-## VoiceEverywhere (macOS menubar)
+# VoiceEverywhere
 
-Nhập văn bản bằng giọng nói vào bất kỳ ô input nào trên macOS. Ứng dụng menubar, hotkey toàn cục, dùng Soniox realtime streaming.
+Ứng dụng menubar trên macOS giúp nhập văn bản bằng giọng nói vào **bất kỳ ô input nào**. Nhấn hotkey, nói, text tự động được gõ vào nơi con trỏ đang focus. Hỗ trợ nhận dạng tiếng Việt và tiếng Anh realtime.
 
-### Yêu cầu
-- macOS 13+ với Xcode CLT đã cài (chỉ cần CLI, không mở Xcode GUI).
-- Biến môi trường `SONIOX_API_KEY` (Soniox dashboard → API keys).
-- Quyền Microphone và Accessibility cho ứng dụng.
+## Tính năng
 
-### Cách build & chạy (không mở Xcode)
+- Nhận dạng giọng nói realtime qua Soniox API (model `stt-rt-v3`)
+- Tự nhận biết tiếng Việt / tiếng Anh
+- Gõ text trực tiếp vào app đang focus (không cần copy-paste)
+- Hotkey toàn cục: `Ctrl + Option + Space` (⌃⌥Space)
+- Cấu hình API key và context nhận dạng ngay trong menu
+- Âm thanh phản hồi khi bật/tắt ghi âm
+- Chạy trên menubar, không chiếm dock
+
+## Yêu cầu
+
+- macOS 13 trở lên
+- Xcode Command Line Tools (`xcode-select --install`)
+- API key từ [Soniox](https://soniox.com) (Dashboard → API keys)
+
+## Cài đặt & Chạy
+
 ```bash
-cd /Users/phuhung/Documents/Studies/voice-everywhere
-export SONIOX_API_KEY="...your api key..."   # nếu chạy từ terminal
-./scripts/build_app.sh            # hoặc ./scripts/build_app.sh debug
+git clone git@github.com:VinhHung1999/voice-everywhere.git
+cd voice-everywhere
+
+# Build app bundle
+./scripts/build_app.sh
+
+# Mở app
 open dist/VoiceEverywhere.app
 ```
-Hoặc lưu key vào file `~/.voiceeverywhere_api_key` (một dòng chứa key) để khi mở app từ Finder vẫn nhận được.
 
-### Sử dụng
-- Biểu tượng mic sẽ xuất hiện trên menubar.
-- Hotkey mặc định: `Ctrl + Option + Space` (⌃⌥Space) để bật/tắt ghi âm.
-- Khi ghi âm, text sẽ được Soniox nhận dạng real-time và **tự gõ** vào ô đang focus.
-- Không lưu lịch sử transcript (có thể bổ sung sau).
+Build debug:
+```bash
+./scripts/build_app.sh debug
+```
 
-### Quyền truy cập cần cấp
-- **Microphone**: lần đầu sẽ hiện prompt; nếu lỡ từ chối, vào System Settings → Privacy & Security → Microphone.
-- **Accessibility** (để gõ phím): mở menu → “Request Accessibility Access…” hoặc System Settings → Privacy & Security → Accessibility, bật cho VoiceEverywhere.
+## Cấu hình
 
-### Thay đổi hotkey
-- Sửa giá trị mặc định trong `Sources/HotKeyManager.swift` (`keyCode`/`modifiers`), sau đó build lại.
+Khi mở app lần đầu, click vào icon mic trên menubar để mở menu. Bạn sẽ thấy phần cài đặt ngay trong menu:
 
-### Mặc định nhận dạng
-- Model: `stt-rt-v3`, audio `pcm_s16le`, 16kHz, mono.
-- `language_hints`: `["vi", "en"]` và bật `enable_language_identification`.
+1. **API Key** — Nhập Soniox API key (bắt buộc)
+2. **Context Terms** — Các từ/thuật ngữ đặc biệt cách nhau bằng dấu phẩy (ví dụ: `SwiftUI, Soniox, CoreML`) — giúp nhận dạng chính xác hơn các từ chuyên ngành
+3. **General Context** — Mô tả ngữ cảnh chung (ví dụ: `Cuộc họp về iOS development`) — giúp model hiểu bối cảnh tốt hơn
 
-### Thư mục tạo thêm
-- `.build/` (SwiftPM), `dist/VoiceEverywhere.app` (bundle thành phẩm).
+Nhấn **Save** để lưu. Cấu hình được giữ lại giữa các lần mở app.
+
+## Sử dụng
+
+1. Click icon **mic** trên menubar hoặc nhấn `Ctrl + Option + Space` để bắt đầu ghi âm
+2. Nói — text được nhận dạng realtime và tự động gõ vào nơi con trỏ đang focus
+3. Nhấn lại `Ctrl + Option + Space` để dừng
+
+**Trạng thái icon menubar:**
+| Icon | Trạng thái |
+|------|-----------|
+| 🎤 `mic` | Sẵn sàng (idle) |
+| 🎤 `mic.fill` | Đang ghi âm |
+| 🎤 `mic.badge.xmark` | Đang kết nối / Lỗi |
+
+## Quyền truy cập cần cấp
+
+App sẽ hỏi quyền khi chạy lần đầu:
+
+1. **Microphone** — cho phép khi được hỏi. Nếu lỡ từ chối: System Settings → Privacy & Security → Microphone
+2. **Accessibility** — cần để app gõ phím vào ứng dụng khác. Vào System Settings → Privacy & Security → Accessibility → bật VoiceEverywhere
+
+## Thay đổi hotkey
+
+Sửa `keyCode` và `modifiers` trong `Sources/HotKeyManager.swift`, rồi build lại.
+
+## Chi tiết kỹ thuật
+
+- **Ngôn ngữ:** Swift (SwiftPM, không cần Xcode GUI)
+- **Soniox model:** `stt-rt-v3`, WebSocket streaming
+- **Audio:** PCM signed 16-bit LE, 16kHz, mono
+- **Language hints:** `["vi", "en"]` với auto language identification
+- **Log file:** `~/Library/Logs/VoiceEverywhere.log`
+
+## License
+
+MIT
