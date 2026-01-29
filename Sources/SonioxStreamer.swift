@@ -45,6 +45,7 @@ final class SonioxStreamer: NSObject, @unchecked Sendable {
     var onStateChange: ((State) -> Void)?
     var onFinalText: ((String) -> Void)?
     var onPartialText: ((String) -> Void)?
+    var onUtteranceEnd: (() -> Void)?
 
     private var finalBuffer: String = ""
     private var pendingApiKey: String = ""
@@ -191,10 +192,11 @@ final class SonioxStreamer: NSObject, @unchecked Sendable {
         }
 
         if let tokens = response.tokens {
-            let finalTokens = tokens.filter { $0.isFinal == true }
+            let rawFinal = tokens.filter { $0.isFinal == true }
                 .map { $0.text }
                 .joined()
-                .replacingOccurrences(of: "<end>", with: "")
+            let hasEnd = rawFinal.contains("<end>")
+            let finalTokens = rawFinal.replacingOccurrences(of: "<end>", with: "")
             let partialTokens = tokens.filter { $0.isFinal != true }
                 .map { $0.text }
                 .joined()
@@ -204,6 +206,11 @@ final class SonioxStreamer: NSObject, @unchecked Sendable {
                 finalBuffer.append(finalTokens)
                 onFinalText?(finalTokens)
                 VELog.write("Soniox final: \(finalTokens)")
+            }
+
+            if hasEnd {
+                VELog.write("Soniox utterance end detected")
+                onUtteranceEnd?()
             }
 
             if !partialTokens.isEmpty {

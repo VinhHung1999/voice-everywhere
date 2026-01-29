@@ -180,32 +180,35 @@ private final class SettingsContentView: NSView {
             formatPresets = decoded
         }
 
-        let btnW: CGFloat = 28
-        let editW: CGFloat = 40
-        let gap: CGFloat = 4
-        let popupW = iw - btnW * 2 - editW - gap * 3
+        let btnSize: CGFloat = 26
+        let editW: CGFloat = 46
+        let btnGap: CGFloat = 2   // tight grouping between buttons
+        let popGap: CGFloat = 8   // breathing room between popup and buttons
+        let btnGroupW = btnSize * 2 + editW + btnGap * 2
+        let popupW = iw - btnGroupW - popGap
+        let btnGroupX = m + popupW + popGap
 
         formatPresetPopup.frame = NSRect(x: m, y: y - 26, width: popupW, height: 26)
         formatPresetPopup.font = NSFont.systemFont(ofSize: 12)
         addSubview(formatPresetPopup)
 
-        addPresetButton.frame = NSRect(x: m + popupW + gap, y: y - 26, width: btnW, height: 26)
+        addPresetButton.frame = NSRect(x: btnGroupX, y: y - 26, width: btnSize, height: 26)
         addPresetButton.bezelStyle = .rounded
-        addPresetButton.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        addPresetButton.font = NSFont.systemFont(ofSize: 15, weight: .regular)
         addPresetButton.target = self
         addPresetButton.action = #selector(didAddPreset)
         addSubview(addPresetButton)
 
-        removePresetButton.frame = NSRect(x: m + popupW + gap + btnW + gap, y: y - 26, width: btnW, height: 26)
+        removePresetButton.frame = NSRect(x: btnGroupX + btnSize + btnGap, y: y - 26, width: btnSize, height: 26)
         removePresetButton.bezelStyle = .rounded
-        removePresetButton.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        removePresetButton.font = NSFont.systemFont(ofSize: 15, weight: .regular)
         removePresetButton.target = self
         removePresetButton.action = #selector(didRemovePreset)
         addSubview(removePresetButton)
 
-        editPresetButton.frame = NSRect(x: m + popupW + gap + (btnW + gap) * 2, y: y - 26, width: editW, height: 26)
+        editPresetButton.frame = NSRect(x: btnGroupX + (btnSize + btnGap) * 2, y: y - 26, width: editW, height: 26)
         editPresetButton.bezelStyle = .rounded
-        editPresetButton.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        editPresetButton.font = NSFont.systemFont(ofSize: 12, weight: .regular)
         editPresetButton.target = self
         editPresetButton.action = #selector(didEditPreset)
         addSubview(editPresetButton)
@@ -338,37 +341,53 @@ private final class SettingsContentView: NSView {
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 130))
+        let cw: CGFloat = 320
+        let instrH: CGFloat = 80
+        let containerH: CGFloat = 16 + 24 + 12 + 16 + instrH + 4 // label+field+gap+label+textarea+pad
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: cw, height: containerH))
+
+        var cy = containerH
 
         let nameLabel = NSTextField(labelWithString: "Name:")
-        nameLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
-        nameLabel.frame = NSRect(x: 0, y: 108, width: 300, height: 16)
+        nameLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        nameLabel.textColor = .secondaryLabelColor
+        cy -= 16
+        nameLabel.frame = NSRect(x: 0, y: cy, width: cw, height: 16)
         container.addSubview(nameLabel)
 
-        let nameField = NSTextField(frame: NSRect(x: 0, y: 82, width: 300, height: 24))
+        cy -= 26
+        let nameField = NSTextField(frame: NSRect(x: 0, y: cy, width: cw, height: 24))
         nameField.stringValue = name
         nameField.placeholderString = "Preset name"
         nameField.bezelStyle = .roundedBezel
         nameField.font = NSFont.systemFont(ofSize: 12)
         container.addSubview(nameField)
 
+        cy -= 16
         let instrLabel = NSTextField(labelWithString: "Instructions:")
-        instrLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
-        instrLabel.frame = NSRect(x: 0, y: 60, width: 300, height: 16)
+        instrLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        instrLabel.textColor = .secondaryLabelColor
+        instrLabel.frame = NSRect(x: 0, y: cy, width: cw, height: 16)
         container.addSubview(instrLabel)
 
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 58))
+        cy -= (instrH + 2)
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: cy, width: cw, height: instrH))
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .bezelBorder
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 296, height: 58))
+        scrollView.drawsBackground = true
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: cw - 4, height: instrH))
         textView.isEditable = true
         textView.isSelectable = true
+        textView.allowsUndo = true
         textView.isRichText = false
         textView.font = NSFont.systemFont(ofSize: 12)
         textView.textContainerInset = NSSize(width: 4, height: 4)
         textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
+        textView.autoresizingMask = [.width]
+        textView.backgroundColor = .textBackgroundColor
         textView.string = instructions
         scrollView.documentView = textView
         container.addSubview(scrollView)

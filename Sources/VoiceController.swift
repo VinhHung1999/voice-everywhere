@@ -13,8 +13,14 @@ final class VoiceController: @unchecked Sendable {
     private let capture = AudioCapture()
     private let streamer = SonioxStreamer()
     private let injector = TextInjector()
+    private let llmProcessor = LLMProcessor()
     private var activityToken: NSObjectProtocol?
     private var languageHints: [String]
+
+    /// Buffer for accumulating final text when LLM is enabled.
+    /// Sent to LLM as one request when recording stops.
+    private var llmBuffer: String = ""
+    private var llmConfig: LLMProcessor.Config?
 
     var onStateChange: ((State) -> Void)?
     var onPartial: ((String) -> Void)?
@@ -26,10 +32,21 @@ final class VoiceController: @unchecked Sendable {
         self.languageHints = languageHints
 
         let injectorRef = injector
-        streamer.onFinalText = { text in
-            DispatchQueue.main.async {
-                injectorRef.type(text)
+        streamer.onFinalText = { [weak self] text in
+            guard let self else { return }
+            if self.llmConfig != nil {
+                // LLM enabled: buffer text, inject later when session ends
+                self.llmBuffer.append(text)
+            } else {
+                // LLM disabled: inject immediately (original behavior)
+                DispatchQueue.main.async {
+                    injectorRef.type(text)
+                }
             }
+        }
+
+        streamer.onUtteranceEnd = { [weak self] in
+            self?.flushLLMBuffer()
         }
 
         streamer.onPartialText = { [weak self] text in
@@ -62,6 +79,9 @@ final class VoiceController: @unchecked Sendable {
         }
 
         isStopping = false
+        llmBuffer = ""
+        llmConfig = llmProcessor.currentConfig()
+
         currentState = .connecting
         activityToken = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason: "Voice capture")
 
@@ -90,6 +110,32 @@ final class VoiceController: @unchecked Sendable {
         }
     }
 
+    /// Send buffered text to LLM and inject the result.
+    /// Called per utterance (on <end>) and on session close.
+    private func flushLLMBuffer() {
+        let text = llmBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let config = llmConfig
+        llmBuffer = ""
+
+        guard !text.isEmpty, let config else { return }
+
+        let injectorRef = injector
+        let llmRef = llmProcessor
+        Task {
+            do {
+                let processed = try await llmRef.process(text, config: config)
+                DispatchQueue.main.async {
+                    injectorRef.type(processed)
+                }
+            } catch {
+                VELog.write("LLM processing failed, injecting raw text: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    injectorRef.type(text)
+                }
+            }
+        }
+    }
+
     private func handle(streamerState: SonioxStreamer.State) {
         switch streamerState {
         case .connecting:
@@ -113,6 +159,8 @@ final class VoiceController: @unchecked Sendable {
                 }
                 isStopping = false
             }
+            flushLLMBuffer()
+            llmConfig = nil
             currentState = .idle
         case .failed(let error):
             if isAudioRunning {
@@ -120,10 +168,14 @@ final class VoiceController: @unchecked Sendable {
                 isAudioRunning = false
             }
             if isStopping {
-                // Suppress error during user-initiated stop
                 isStopping = false
+                flushLLMBuffer()
+                llmConfig = nil
                 currentState = .idle
             } else {
+                // Discard buffer on error
+                llmBuffer = ""
+                llmConfig = nil
                 currentState = .error(error.localizedDescription)
             }
         case .idle:
