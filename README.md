@@ -8,7 +8,9 @@
 - Tự nhận biết tiếng Việt / tiếng Anh
 - Gõ text trực tiếp vào app đang focus (không cần copy-paste)
 - Hotkey toàn cục: `Ctrl + Option + Space` (⌃⌥Space)
-- Cấu hình API key và context nhận dạng ngay trong menu
+- **LLM post-processing** qua xAI API — tự động chỉnh sửa, dịch, hoặc format text sau khi nhận dạng
+- **Format Presets** — tạo và quản lý nhiều preset format instructions (ví dụ: "Formal English", "Casual Vietnamese"), chọn nhanh qua dropdown
+- Cấu hình API key và context nhận dạng trong cửa sổ Settings
 - Âm thanh phản hồi khi bật/tắt ghi âm
 - Chạy trên menubar, không chiếm dock
 
@@ -38,11 +40,26 @@ Build debug:
 
 ## Cấu hình
 
-Khi mở app lần đầu, click vào icon mic trên menubar để mở menu. Bạn sẽ thấy phần cài đặt ngay trong menu:
+Click vào icon mic trên menubar → **Settings** để mở cửa sổ cài đặt.
 
-1. **API Key** — Nhập Soniox API key (bắt buộc)
-2. **Context Terms** — Các từ/thuật ngữ đặc biệt cách nhau bằng dấu phẩy (ví dụ: `SwiftUI, Soniox, CoreML`) — giúp nhận dạng chính xác hơn các từ chuyên ngành
-3. **General Context** — Mô tả ngữ cảnh chung (ví dụ: `Cuộc họp về iOS development`) — giúp model hiểu bối cảnh tốt hơn
+### Soniox (Speech-to-Text)
+
+1. **Soniox API Key** — Nhập API key từ Soniox (bắt buộc)
+2. **Context Terms** — Các từ/thuật ngữ đặc biệt cách nhau bằng dấu phẩy (ví dụ: `SwiftUI, Soniox, CoreML`) — giúp nhận dạng chính xác hơn
+3. **General Context** — Mô tả ngữ cảnh chung (ví dụ: `Cuộc họp về iOS development`)
+
+### LLM Post-Processing (xAI)
+
+Bật **Enable LLM post-processing** để text sau khi nhận dạng được gửi qua xAI API xử lý thêm (chỉnh grammar, dịch, format...) trước khi gõ ra.
+
+4. **xAI API Key** — API key từ xAI
+5. **Model** — Model sử dụng (mặc định: `grok-3-mini-fast`)
+6. **Output Language** — Ngôn ngữ đầu ra: English, Vietnamese, hoặc "As spoken (no LLM)" để tắt
+7. **Format Preset** — Chọn preset chứa format instructions cho LLM. Dùng các nút:
+   - **+** — Tạo preset mới (nhập tên + instructions)
+   - **−** — Xóa preset đang chọn
+   - **Edit** — Sửa nội dung preset đang chọn
+   - Chọn **(None)** để không dùng format instructions
 
 Nhấn **Save** để lưu. Cấu hình được giữ lại giữa các lần mở app.
 
@@ -74,6 +91,7 @@ Sửa `keyCode` và `modifiers` trong `Sources/HotKeyManager.swift`, rồi build
 
 - **Ngôn ngữ:** Swift (SwiftPM, không cần Xcode GUI)
 - **Soniox model:** `stt-rt-v3`, WebSocket streaming
+- **LLM:** xAI API (`grok-3-mini-fast` mặc định), tùy chọn post-processing
 - **Audio:** PCM signed 16-bit LE, 16kHz, mono
 - **Language hints:** `["vi", "en"]` với auto language identification
 - **Log file:** `~/Library/Logs/VoiceEverywhere.log`

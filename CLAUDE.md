@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VoiceEverywhere is a native macOS menubar application (Swift/SwiftUI) that captures voice input and converts it to text in real-time using the Soniox speech-to-text API, then types the recognized text into any focused text field via the Accessibility API. Supports Vietnamese and English language identification. The app runs as a menubar-only app (no dock icon) with inline settings for API key and recognition context configuration.
+VoiceEverywhere is a native macOS menubar application (Swift/SwiftUI) that captures voice input and converts it to text in real-time using the Soniox speech-to-text API, then types the recognized text into any focused text field via the Accessibility API. Supports Vietnamese and English language identification. Optional LLM post-processing via xAI API can rewrite/translate/format the recognized text before typing. The app runs as a menubar-only app (no dock icon) with a Settings window for API keys, context, and format presets.
 
 ## Build & Run Commands
 
@@ -29,7 +29,7 @@ There are no test targets configured.
 
 All source code lives in `Sources/` (single SwiftPM executable target, no external dependencies). Linked framework: Carbon (for global hotkey).
 
-**Data flow:** Hotkey press → AudioCapture (16kHz PCM via AVAudioEngine) → SonioxStreamer (WebSocket to `wss://stt-rt.soniox.com/transcribe-websocket`) → recognized text → TextInjector (CGEvent keyboard simulation into focused app)
+**Data flow:** Hotkey press → AudioCapture (16kHz PCM via AVAudioEngine) → SonioxStreamer (WebSocket to `wss://stt-rt.soniox.com/transcribe-websocket`) → recognized text → (optional) LLMProcessor (xAI API post-processing) → TextInjector (CGEvent keyboard simulation into focused app)
 
 **Key modules:**
 
@@ -40,7 +40,8 @@ All source code lives in `Sources/` (single SwiftPM executable target, no extern
 - **AudioCapture.swift** — AVAudioEngine setup, format conversion (native → 16kHz mono PCM s16le), mic permission handling
 - **HotKeyManager.swift** — Global hotkey registration via Carbon framework (Ctrl+Option+Space)
 - **TextInjector.swift** — Accessibility API keyboard simulation to type text into any app; checks AXIsProcessTrusted before injecting
-- **ContextConfigWindow.swift** — Contains `MenuSettingsView`: inline settings panel embedded in menubar menu with API key (secure field), context terms (comma-separated), and general context text inputs; persists to UserDefaults
+- **LLMProcessor.swift** — xAI API client for optional post-processing of recognized text; reads config from UserDefaults (API key, model, output language, active format preset); includes `FormatPreset` Codable struct
+- **ContextConfigWindow.swift** — `SettingsWindowController` + `SettingsContentView`: Settings window with Soniox config (API key, context terms, general context), LLM config (toggle, xAI key, model, output language), and format preset management (dropdown + add/remove/edit buttons); persists to UserDefaults
 - **Logger.swift** — Async file logging to `~/Library/Logs/VoiceEverywhere.log` with ISO8601 timestamps
 
 ## Configuration
@@ -52,8 +53,14 @@ The app stores settings in **UserDefaults**:
 | `soniox_api_key` | Soniox API authentication key |
 | `soniox_context_terms` | Comma-separated special terms for recognition (e.g. "SwiftUI, Soniox, CoreML") |
 | `soniox_context_general` | General context text to improve recognition accuracy |
+| `llm_enabled` | Bool — whether LLM post-processing is active |
+| `xai_api_key` | xAI API authentication key |
+| `xai_model` | LLM model name (default: `grok-3-mini-fast`) |
+| `output_language` | Output language: "English", "Vietnamese", or "As spoken (no LLM)" |
+| `format_presets` | JSON-encoded array of `{name, instructions}` format presets |
+| `active_format_preset` | Name of the currently selected format preset (empty = none) |
 
-All three are configured via the inline MenuSettingsView in the menubar menu and read at recording start.
+All settings are configured via the Settings window (menubar → Settings) and read at recording start.
 
 ## Required macOS Permissions
 
@@ -65,6 +72,7 @@ All three are configured via the inline MenuSettingsView in the menubar menu and
 - **Platform:** macOS 13+ (Swift Tools 6.1)
 - **Soniox model:** `stt-rt-v3` with language hints `["vi", "en"]` and language identification enabled
 - **Soniox context:** Optional terms array and general text passed in WebSocket config for improved recognition
+- **LLM post-processing:** Optional xAI API integration; supports format presets (named instruction sets stored as JSON in UserDefaults)
 - **Audio format:** PCM signed 16-bit LE, 16kHz, mono
 - **Default hotkey:** Ctrl+Option+Space (⌃⌥Space) — toggles recording on/off
 - **Bundle ID:** `com.local.voiceeverywhere`
