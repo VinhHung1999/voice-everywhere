@@ -7,7 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var partialItem: NSMenuItem!
     private var hotKeyManager: HotKeyManager?
     private var controller: VoiceController?
-    private var settingsView: MenuSettingsView!
+    private let settingsController = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -50,11 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        // Settings inline
-        settingsView = MenuSettingsView(width: menu.minimumWidth > 0 ? menu.minimumWidth : 300)
-        let settingsItem = NSMenuItem()
-        settingsItem.view = settingsView
-        menu.addItem(settingsItem)
+        let configureItem = NSMenuItem(title: "Configure…", action: #selector(openSettings), keyEquivalent: ",")
+        configureItem.target = self
+        menu.addItem(configureItem)
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Request Accessibility Access…", action: #selector(openAccessibilityPane), keyEquivalent: ""))
@@ -70,11 +68,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func openSettings() {
+        settingsController.showWindow()
+    }
+
     @objc private func toggle() {
         let savedKey = UserDefaults.standard.string(forKey: "soniox_api_key")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if savedKey.isEmpty {
-            // Flash the API key field
-            settingsView.highlightApiKey()
+            settingsController.highlightApiKey()
             return
         }
         controller?.toggle()
