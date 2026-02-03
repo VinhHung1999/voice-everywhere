@@ -277,12 +277,24 @@ async def verify_speaker(audio: UploadFile = File(...)):
         # Extract embedding
         test_embedding = verifier.encode_batch(waveform)
 
-        # Compute cosine similarity (specify dim to ensure scalar output)
+        # Ensure both embeddings are 2D tensors [1, embedding_dim]
+        if enrolled_embedding.dim() == 1:
+            enrolled_embedding_2d = enrolled_embedding.unsqueeze(0)
+        else:
+            enrolled_embedding_2d = enrolled_embedding
+
+        if test_embedding.dim() == 1:
+            test_embedding_2d = test_embedding.unsqueeze(0)
+        else:
+            test_embedding_2d = test_embedding
+
+        # Compute cosine similarity along embedding dimension
+        # Result is shape [1], need to extract scalar
         similarity = torch.nn.functional.cosine_similarity(
-            enrolled_embedding,
-            test_embedding,
+            enrolled_embedding_2d,
+            test_embedding_2d,
             dim=1
-        ).item()
+        ).squeeze().item()  # squeeze() removes batch dim, .item() extracts scalar
 
         # Verification decision
         verified = similarity > verification_threshold
