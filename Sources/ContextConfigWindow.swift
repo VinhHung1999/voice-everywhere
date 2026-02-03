@@ -55,6 +55,7 @@ private final class SettingsContentView: NSView {
     private let enrollmentStatusLabel: NSTextField
     private let recordButton: NSButton
     private let progressLabel: NSTextField
+    private let enrollWithServiceButton: NSButton
     private let clearEnrollmentButton: NSButton
     private let verificationToggle: NSButton
 
@@ -88,6 +89,7 @@ private final class SettingsContentView: NSView {
         enrollmentStatusLabel = NSTextField(labelWithString: "")
         recordButton = NSButton(title: "Record Sample", target: nil, action: nil)
         progressLabel = NSTextField(labelWithString: "")
+        enrollWithServiceButton = NSButton(title: "Enroll with Python Service", target: nil, action: nil)
         clearEnrollmentButton = NSButton(title: "Clear & Re-enroll", target: nil, action: nil)
         verificationToggle = NSButton(checkboxWithTitle: "Enable speaker verification", target: nil, action: nil)
 
@@ -284,6 +286,15 @@ private final class SettingsContentView: NSView {
         progressLabel.frame = NSRect(x: m, y: y - 14, width: iw, height: 14)
         addSubview(progressLabel)
         y -= 22
+
+        // ── Enroll with Python Service Button ──
+        enrollWithServiceButton.frame = NSRect(x: m, y: y - 32, width: iw, height: 32)
+        enrollWithServiceButton.bezelStyle = .rounded
+        enrollWithServiceButton.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        enrollWithServiceButton.target = self
+        enrollWithServiceButton.action = #selector(didEnrollWithService)
+        addSubview(enrollWithServiceButton)
+        y -= 40
 
         // ── Clear Button ──
         clearEnrollmentButton.frame = NSRect(x: m, y: y - 28, width: iw, height: 28)
@@ -509,8 +520,12 @@ private final class SettingsContentView: NSView {
 
         recordButton.title = "Record Sample \(currentSampleNumber)/\(maxSamples)"
         recordButton.isEnabled = currentSampleNumber <= maxSamples
+        enrollWithServiceButton.isEnabled = status.isEnrolled
         clearEnrollmentButton.isEnabled = status.isEnrolled
         progressLabel.stringValue = ""
+
+        // Update Python service enrollment status
+        updateServiceEnrollmentStatus()
     }
 
     @objc private func didRecord() {
@@ -530,6 +545,7 @@ private final class SettingsContentView: NSView {
 
             // Update UI for recording state
             recordButton.title = "Stop Recording"
+            enrollWithServiceButton.isEnabled = false
             clearEnrollmentButton.isEnabled = false
             saveButton.isEnabled = false
             progressLabel.stringValue = "Recording: 0.0s / \(Int(maxDuration)).0s"
@@ -595,6 +611,39 @@ private final class SettingsContentView: NSView {
         }
     }
 
+    @objc private func didEnrollWithService() {
+        // Disable button during enrollment
+        enrollWithServiceButton.isEnabled = false
+        progressLabel.stringValue = "Enrolling with Python service..."
+
+        Task {
+            do {
+                let verifier = SpeakerVerifier()
+                let result = try await verifier.enroll()
+
+                await MainActor.run {
+                    progressLabel.stringValue = "✅ Enrolled! \(result.samplesProcessed) samples processed in \(String(format: "%.1f", result.processingTimeS))s"
+                    enrollWithServiceButton.isEnabled = true
+
+                    // Update enrollment status from service
+                    updateServiceEnrollmentStatus()
+                }
+            } catch VerificationError.noEnrollmentSamples {
+                await MainActor.run {
+                    showError(message: "No enrollment samples found. Please record 3-5 voice samples first.")
+                    progressLabel.stringValue = ""
+                    enrollWithServiceButton.isEnabled = true
+                }
+            } catch {
+                await MainActor.run {
+                    showError(message: "Enrollment failed: \(error.localizedDescription)")
+                    progressLabel.stringValue = "Enrollment failed"
+                    enrollWithServiceButton.isEnabled = true
+                }
+            }
+        }
+    }
+
     @objc private func didClearEnrollment() {
         let alert = NSAlert()
         alert.messageText = "Clear Voice Enrollment?"
@@ -613,6 +662,22 @@ private final class SettingsContentView: NSView {
                 self?.progressLabel.stringValue = "Enrollment cleared"
             } catch {
                 self?.showError(message: "Failed to clear enrollment: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func updateServiceEnrollmentStatus() {
+        Task {
+            do {
+                let verifier = SpeakerVerifier()
+                let status = try await verifier.getStatus()
+                await MainActor.run {
+                    if status.isEnrolled {
+                        enrollmentStatusLabel.stringValue = "✅ Enrolled with Python service (\(status.sampleCount) samples)"
+                    }
+                }
+            } catch {
+                // Silently fail - service may not be running
             }
         }
     }
