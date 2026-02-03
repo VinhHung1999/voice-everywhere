@@ -11,9 +11,9 @@ final class SettingsWindowController {
             return
         }
 
-        let contentView = SettingsContentView(frame: NSRect(x: 0, y: 0, width: 380, height: 600))
+        let contentView = SettingsContentView(frame: NSRect(x: 0, y: 0, width: 380, height: 750))
         let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 750),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -51,8 +51,22 @@ private final class SettingsContentView: NSView {
     private let editPresetButton: NSButton
     private let saveButton: NSButton
 
+    // Enrollment UI
+    private let enrollmentStatusLabel: NSTextField
+    private let recordButton: NSButton
+    private let progressLabel: NSTextField
+    private let clearEnrollmentButton: NSButton
+
     private var _termsTV: NSTextView!
     private var _generalTV: NSTextView!
+
+    // Enrollment state
+    private var enrollmentManager = EnrollmentManager()
+    private var recordingStartTime: Date?
+    private var recordingTimer: Timer?
+    private var currentSampleNumber = 1
+    private let maxSamples = 5
+    private let maxDuration: TimeInterval = 5.0
 
     private var formatPresets: [LLMProcessor.FormatPreset] = []
 
@@ -69,6 +83,11 @@ private final class SettingsContentView: NSView {
         removePresetButton = NSButton(title: "−", target: nil, action: nil)
         editPresetButton = NSButton(title: "Edit", target: nil, action: nil)
         saveButton = NSButton(title: "Save", target: nil, action: nil)
+
+        enrollmentStatusLabel = NSTextField(labelWithString: "")
+        recordButton = NSButton(title: "Record Sample", target: nil, action: nil)
+        progressLabel = NSTextField(labelWithString: "")
+        clearEnrollmentButton = NSButton(title: "Clear & Re-enroll", target: nil, action: nil)
 
         super.init(frame: frame)
 
@@ -223,9 +242,60 @@ private final class SettingsContentView: NSView {
         saveButton.target = self
         saveButton.action = #selector(didSave)
         addSubview(saveButton)
+        y -= 40
+
+        // ── Separator ──
+        let separator2 = NSBox()
+        separator2.boxType = .separator
+        separator2.frame = NSRect(x: m, y: y - 1, width: iw, height: 1)
+        addSubview(separator2)
+        y -= 16
+
+        // ── Voice Enrollment Header ──
+        let enrollmentHeader = NSTextField(labelWithString: "Voice Enrollment")
+        enrollmentHeader.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        enrollmentHeader.textColor = .labelColor
+        enrollmentHeader.frame = NSRect(x: m, y: y - 18, width: iw, height: 18)
+        addSubview(enrollmentHeader)
+        y -= 26
+
+        // ── Enrollment Status ──
+        enrollmentStatusLabel.font = NSFont.systemFont(ofSize: 12)
+        enrollmentStatusLabel.textColor = .secondaryLabelColor
+        enrollmentStatusLabel.frame = NSRect(x: m, y: y - 16, width: iw, height: 16)
+        addSubview(enrollmentStatusLabel)
+        y -= 24
+
+        // ── Record Button ──
+        recordButton.frame = NSRect(x: m, y: y - 32, width: iw, height: 32)
+        recordButton.bezelStyle = .rounded
+        recordButton.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        recordButton.target = self
+        recordButton.action = #selector(didRecord)
+        addSubview(recordButton)
+        y -= 40
+
+        // ── Progress Label ──
+        progressLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        progressLabel.textColor = .secondaryLabelColor
+        progressLabel.alignment = .center
+        progressLabel.frame = NSRect(x: m, y: y - 14, width: iw, height: 14)
+        addSubview(progressLabel)
+        y -= 22
+
+        // ── Clear Button ──
+        clearEnrollmentButton.frame = NSRect(x: m, y: y - 28, width: iw, height: 28)
+        clearEnrollmentButton.bezelStyle = .rounded
+        clearEnrollmentButton.font = NSFont.systemFont(ofSize: 12)
+        clearEnrollmentButton.target = self
+        clearEnrollmentButton.action = #selector(didClearEnrollment)
+        addSubview(clearEnrollmentButton)
 
         // Set initial enabled state of LLM fields
         llmToggleChanged()
+
+        // Update enrollment UI
+        updateEnrollmentUI()
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -403,6 +473,139 @@ private final class SettingsContentView: NSView {
             let newInstr = textView.string
             onSave(newName, newInstr)
         }
+    }
+
+    // MARK: - Enrollment Management
+
+    private func updateEnrollmentUI() {
+        let status = EnrollmentManager.getEnrollmentStatus()
+        enrollmentStatusLabel.stringValue = status.displayText
+
+        if status.isEnrolled {
+            let count = if case .enrolled(let c) = status { c } else { 0 }
+            currentSampleNumber = count + 1
+        } else {
+            currentSampleNumber = 1
+        }
+
+        recordButton.title = "Record Sample \(currentSampleNumber)/\(maxSamples)"
+        recordButton.isEnabled = currentSampleNumber <= maxSamples
+        clearEnrollmentButton.isEnabled = status.isEnrolled
+        progressLabel.stringValue = ""
+    }
+
+    @objc private func didRecord() {
+        if recordingStartTime == nil {
+            // Start recording
+            startRecording()
+        } else {
+            // Stop recording
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        do {
+            try enrollmentManager.startRecording()
+            recordingStartTime = Date()
+
+            // Update UI for recording state
+            recordButton.title = "Stop Recording"
+            clearEnrollmentButton.isEnabled = false
+            saveButton.isEnabled = false
+            progressLabel.stringValue = "Recording: 0.0s / \(Int(maxDuration)).0s"
+
+            // Start timer for progress updates
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateRecordingProgress()
+                }
+            }
+
+            // Play sound feedback
+            NSSound.beep()
+
+        } catch {
+            showError(message: "Failed to start recording: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopRecording() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+
+        do {
+            _ = try enrollmentManager.stopRecording(sampleNumber: currentSampleNumber)
+
+            // Play sound feedback
+            NSSound.beep()
+
+            // Reset UI
+            recordingStartTime = nil
+            updateEnrollmentUI()
+            saveButton.isEnabled = true
+
+            // Show success message
+            let status = EnrollmentManager.getEnrollmentStatus()
+            if case .enrolled(let count) = status, count >= 3 {
+                progressLabel.stringValue = "✓ \(count) samples recorded"
+            }
+
+        } catch {
+            showError(message: "Failed to save recording: \(error.localizedDescription)")
+            enrollmentManager.cancelRecording()
+            recordingStartTime = nil
+            updateEnrollmentUI()
+            saveButton.isEnabled = true
+        }
+    }
+
+    private func updateRecordingProgress() {
+        guard let startTime = recordingStartTime else {
+            recordingTimer?.invalidate()
+            recordingTimer = nil
+            return
+        }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+        progressLabel.stringValue = String(format: "Recording: %.1fs / %.1fs", elapsed, maxDuration)
+
+        // Auto-stop after max duration
+        if elapsed >= maxDuration {
+            stopRecording()
+        }
+    }
+
+    @objc private func didClearEnrollment() {
+        let alert = NSAlert()
+        alert.messageText = "Clear Voice Enrollment?"
+        alert.informativeText = "This will delete all recorded voice samples. You will need to re-enroll."
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard let parentWindow = self.window else { return }
+        alert.beginSheetModal(for: parentWindow) { [weak self] response in
+            guard response == .alertFirstButtonReturn else { return }
+
+            do {
+                try EnrollmentManager.clearEnrollment()
+                self?.updateEnrollmentUI()
+                self?.progressLabel.stringValue = "Enrollment cleared"
+            } catch {
+                self?.showError(message: "Failed to clear enrollment: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func showError(message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Error"
+        alert.informativeText = message
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "OK")
+        guard let parentWindow = self.window else { return }
+        alert.beginSheetModal(for: parentWindow, completionHandler: nil)
     }
 
     // MARK: - Helpers
