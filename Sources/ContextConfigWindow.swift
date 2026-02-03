@@ -11,7 +11,16 @@ final class SettingsWindowController {
             return
         }
 
-        let contentView = SettingsContentView(frame: NSRect(x: 0, y: 0, width: 380, height: 750))
+        // Create content view with full height for all content
+        let contentView = SettingsContentView(frame: NSRect(x: 0, y: 0, width: 380, height: 850))
+
+        // Wrap in scroll view
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 380, height: 750))
+        scrollView.documentView = contentView
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = false
+        scrollView.borderType = .noBorder
+
         let w = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 380, height: 750),
             styleMask: [.titled, .closable],
@@ -19,7 +28,7 @@ final class SettingsWindowController {
             defer: false
         )
         w.title = "VoiceEverywhere Settings"
-        w.contentView = contentView
+        w.contentView = scrollView
         w.center()
         w.isReleasedWhenClosed = false
         w.level = .floating
