@@ -67,14 +67,9 @@ echo -e "${GREEN}✓ pip upgraded${NC}"
 
 # Install dependencies
 echo ""
-echo "📥 Installing dependencies (this may take 5-10 minutes)..."
-echo "   Installing: fastapi, uvicorn, python-multipart..."
-pip install fastapi uvicorn[standard] python-multipart
-
-echo ""
-echo "   Installing: speechbrain (includes torch, torchaudio)..."
+echo "📥 Installing dependencies from requirements.txt (this may take 5-10 minutes)..."
 echo "   Note: torch/torchaudio are large (~2GB), please be patient..."
-pip install speechbrain torch torchaudio numpy
+pip install -r requirements.txt
 
 echo ""
 echo -e "${GREEN}✅ All dependencies installed!${NC}"
