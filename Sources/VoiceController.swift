@@ -28,6 +28,13 @@ final class VoiceController: @unchecked Sendable {
     private static let verificationDurationSec: Double = 2.0  // Buffer 2s for verification
     var onVerificationResult: ((Bool, Double) -> Void)?  // (verified, score)
 
+    // Continuous verification state (STORY-008)
+    private var continuousVerificationEnabled = false
+    private var continuousVerificationBuffer = Data()
+    private let continuousVerificationChunkSize = 16000 * 2  // 1s at 16kHz 16-bit
+    private var consecutiveNonBossChunks = 0
+    private var isVerifyingChunk = false
+
     /// Buffer for accumulating final text when LLM is enabled.
     /// Sent to LLM as one request when recording stops.
     private var llmBuffer: String = ""
@@ -94,6 +101,16 @@ final class VoiceController: @unchecked Sendable {
         isStopping = false
         llmBuffer = ""
         llmConfig = llmProcessor.currentConfig()
+
+        // STORY-008: Enable continuous verification if speaker verification is enabled
+        continuousVerificationEnabled = UserDefaults.standard.bool(forKey: "speaker_verification_enabled")
+        continuousVerificationBuffer = Data()
+        consecutiveNonBossChunks = 0
+        isVerifyingChunk = false
+
+        if continuousVerificationEnabled {
+            VELog.write("VoiceController: continuous verification enabled (1s chunks)")
+        }
 
         currentState = .connecting
         activityToken = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason: "Voice capture")
@@ -239,11 +256,23 @@ final class VoiceController: @unchecked Sendable {
             try capture.start { [weak self] data in
                 guard let self else { return }
 
-                // If in verifying state, buffer audio for verification
+                // If in verifying state (initial 2s verification), buffer audio
                 if case .verifying = self.currentState {
                     self.verificationBuffer.append(data)
+                } else if case .listening = self.currentState, self.continuousVerificationEnabled {
+                    // STORY-008: Continuous verification mode
+                    // Buffer audio in 1s chunks and verify each chunk
+                    self.continuousVerificationBuffer.append(data)
+
+                    // Check if chunk is complete (1 second)
+                    if self.continuousVerificationBuffer.count >= self.continuousVerificationChunkSize {
+                        // Verify and forward chunk asynchronously
+                        Task {
+                            await self.verifyAndForwardChunk()
+                        }
+                    }
                 } else {
-                    // Normal streaming to Soniox
+                    // Normal streaming to Soniox (continuous verification disabled)
                     self.streamer.sendAudio(data)
                 }
             }
@@ -332,6 +361,68 @@ final class VoiceController: @unchecked Sendable {
                     self.stop()
                     self.currentState = .error("Verification service unavailable: \(error.localizedDescription)")
                 }
+            }
+        }
+    }
+
+    // MARK: - Continuous Verification (STORY-008)
+
+    private func verifyAndForwardChunk() async {
+        guard !isVerifyingChunk else {
+            VELog.write("VoiceController: skipping chunk verification (already verifying)")
+            return
+        }
+
+        isVerifyingChunk = true
+
+        // Capture current chunk and reset buffer for next chunk
+        let chunkData = continuousVerificationBuffer
+        continuousVerificationBuffer = Data()
+
+        // Create WAV from chunk
+        let wavData = createWAVData(pcmData: chunkData)
+
+        // Initialize verifier if needed
+        if await verifier == nil {
+            await MainActor.run {
+                self.verifier = SpeakerVerifier()
+            }
+        }
+
+        do {
+            guard let verifier = await verifier else {
+                isVerifyingChunk = false
+                return
+            }
+
+            let startTime = Date()
+            let result = try await verifier.verify(audioData: wavData)
+            let verifyDuration = Date().timeIntervalSince(startTime) * 1000  // ms
+
+            await MainActor.run {
+                if result.verified {
+                    // Boss's voice - send chunk to Soniox (automatic RESUME)
+                    self.streamer.sendAudio(chunkData)
+                    self.consecutiveNonBossChunks = 0
+
+                    VELog.write("VoiceController: continuous verification PASSED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms) - sent to Soniox")
+                } else {
+                    // Non-Boss voice - drop chunk (automatic PAUSE)
+                    self.consecutiveNonBossChunks += 1
+
+                    VELog.write("VoiceController: continuous verification REJECTED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms) - paused (consecutive: \(self.consecutiveNonBossChunks))")
+                }
+
+                self.isVerifyingChunk = false
+            }
+
+        } catch {
+            VELog.write("VoiceController: continuous verification error - \(error.localizedDescription), sending chunk anyway (fallback)")
+
+            await MainActor.run {
+                // Fallback: send chunk on verification error
+                self.streamer.sendAudio(chunkData)
+                self.isVerifyingChunk = false
             }
         }
     }
