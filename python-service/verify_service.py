@@ -277,40 +277,22 @@ async def verify_speaker(audio: UploadFile = File(...)):
         # Extract embedding
         test_embedding = verifier.encode_batch(waveform)
 
-        # DEBUG: Log shapes before normalization
-        logger.info(f"DEBUG: enrolled_embedding.shape = {enrolled_embedding.shape}")
-        logger.info(f"DEBUG: test_embedding.shape = {test_embedding.shape}")
-        logger.info(f"DEBUG: enrolled_embedding.dim() = {enrolled_embedding.dim()}")
-        logger.info(f"DEBUG: test_embedding.dim() = {test_embedding.dim()}")
+        # Flatten both embeddings to exactly [1, embedding_dim]
+        # Handles 1D [192], 2D [1,192], or 3D [1,1,192] tensors
+        enrolled_2d = enrolled_embedding.view(1, -1)
+        test_2d = test_embedding.view(1, -1)
 
-        # Ensure both embeddings are 2D tensors [1, embedding_dim]
-        if enrolled_embedding.dim() == 1:
-            enrolled_embedding_2d = enrolled_embedding.unsqueeze(0)
-            logger.info(f"DEBUG: enrolled_embedding unsqueezed to {enrolled_embedding_2d.shape}")
-        else:
-            enrolled_embedding_2d = enrolled_embedding
-            logger.info(f"DEBUG: enrolled_embedding already 2D: {enrolled_embedding_2d.shape}")
-
-        if test_embedding.dim() == 1:
-            test_embedding_2d = test_embedding.unsqueeze(0)
-            logger.info(f"DEBUG: test_embedding unsqueezed to {test_embedding_2d.shape}")
-        else:
-            test_embedding_2d = test_embedding
-            logger.info(f"DEBUG: test_embedding already 2D: {test_embedding_2d.shape}")
+        logger.info(f"Embeddings normalized to enrolled: {enrolled_2d.shape}, test: {test_2d.shape}")
 
         # Compute cosine similarity along embedding dimension
-        # Result is shape [1], need to extract scalar
-        logger.info(f"DEBUG: Computing cosine_similarity with dim=1")
-        similarity_tensor = torch.nn.functional.cosine_similarity(
-            enrolled_embedding_2d,
-            test_embedding_2d,
+        # Result is shape [1] (single similarity score)
+        similarity = torch.nn.functional.cosine_similarity(
+            enrolled_2d,
+            test_2d,
             dim=1
-        )
-        logger.info(f"DEBUG: similarity_tensor.shape = {similarity_tensor.shape}")
-        logger.info(f"DEBUG: similarity_tensor = {similarity_tensor}")
+        ).item()
 
-        similarity = similarity_tensor.squeeze().item()
-        logger.info(f"DEBUG: similarity (scalar) = {similarity}")
+        logger.info(f"Similarity score: {similarity:.4f}")
 
         # Verification decision
         verified = similarity > verification_threshold
