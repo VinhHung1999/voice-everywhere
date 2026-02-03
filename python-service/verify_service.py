@@ -277,10 +277,11 @@ async def verify_speaker(audio: UploadFile = File(...)):
         # Extract embedding
         test_embedding = verifier.encode_batch(waveform)
 
-        # Compute cosine similarity
+        # Compute cosine similarity (specify dim to ensure scalar output)
         similarity = torch.nn.functional.cosine_similarity(
             enrolled_embedding,
-            test_embedding
+            test_embedding,
+            dim=1
         ).item()
 
         # Verification decision
