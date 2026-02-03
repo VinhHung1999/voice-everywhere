@@ -89,6 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .connecting:
             startStopItem.title = "Connecting…"
             setMenuBarIcon("mic.badge.xmark")
+        case .verifying:
+            startStopItem.title = "Verifying speaker…"
+            setMenuBarIcon("mic.badge.checkmark")
         case .listening:
             startStopItem.title = "Stop"
             setMenuBarIcon("mic.fill")

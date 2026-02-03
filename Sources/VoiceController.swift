@@ -5,6 +5,7 @@ final class VoiceController: @unchecked Sendable {
     enum State {
         case idle
         case connecting
+        case verifying  // NEW: Speaker verification before transcription
         case listening
         case finishing
         case error(String)
@@ -16,6 +17,16 @@ final class VoiceController: @unchecked Sendable {
     private let llmProcessor = LLMProcessor()
     private var activityToken: NSObjectProtocol?
     private var languageHints: [String]
+
+    // Speaker verifier (initialized on demand to avoid actor isolation issues)
+    private var verifier: SpeakerVerifier?
+
+    // Speaker verification state
+    private var verificationBuffer = Data()
+    private var verificationStartTime: Date?
+    private var verificationTimer: DispatchSourceTimer?
+    private static let verificationDurationSec: Double = 2.0  // Buffer 2s for verification
+    var onVerificationResult: ((Bool, Double) -> Void)?  // (verified, score)
 
     /// Buffer for accumulating final text when LLM is enabled.
     /// Sent to LLM as one request when recording stops.
@@ -64,7 +75,7 @@ final class VoiceController: @unchecked Sendable {
         switch currentState {
         case .idle, .error(_):
             start()
-        case .connecting, .listening, .finishing:
+        case .connecting, .verifying, .listening, .finishing:
             stop()
         }
     }
@@ -165,7 +176,22 @@ final class VoiceController: @unchecked Sendable {
         case .streaming:
             DispatchQueue.main.async { [weak self] in
                 self?.startAudio()
-                self?.currentState = .listening
+
+                // Check if speaker verification is enabled
+                let verificationEnabled = UserDefaults.standard.bool(forKey: "speaker_verification_enabled")
+
+                if verificationEnabled {
+                    // Enter verifying state, buffer audio first
+                    self?.currentState = .verifying
+                    self?.verificationBuffer = Data()
+                    self?.verificationStartTime = Date()
+                    self?.startVerificationTimer()
+                    VELog.write("VoiceController: entering verification mode")
+                } else {
+                    // Skip verification, go straight to listening
+                    self?.currentState = .listening
+                }
+
                 NSSound(named: "Tink")?.play()
             }
         case .finishing:
@@ -211,11 +237,131 @@ final class VoiceController: @unchecked Sendable {
         guard !isAudioRunning else { return }
         do {
             try capture.start { [weak self] data in
-                self?.streamer.sendAudio(data)
+                guard let self else { return }
+
+                // If in verifying state, buffer audio for verification
+                if case .verifying = self.currentState {
+                    self.verificationBuffer.append(data)
+                } else {
+                    // Normal streaming to Soniox
+                    self.streamer.sendAudio(data)
+                }
             }
             isAudioRunning = true
         } catch {
             currentState = .error("Mic permission needed")
         }
+    }
+
+    // MARK: - Speaker Verification
+
+    private func startVerificationTimer() {
+        cancelVerificationTimer()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + Self.verificationDurationSec)
+        timer.setEventHandler { [weak self] in
+            self?.performVerification()
+        }
+        timer.resume()
+        verificationTimer = timer
+    }
+
+    private func cancelVerificationTimer() {
+        verificationTimer?.cancel()
+        verificationTimer = nil
+    }
+
+    private func performVerification() {
+        cancelVerificationTimer()
+
+        guard case .verifying = currentState else { return }
+
+        VELog.write("VoiceController: performing speaker verification (\(verificationBuffer.count) bytes buffered)")
+
+        // Create WAV file from buffered PCM data
+        let wavData = createWAVData(pcmData: verificationBuffer)
+
+        // Call verification service
+        Task { [weak self] in
+            guard let self else { return }
+
+            // Initialize verifier on demand (MainActor context)
+            if await self.verifier == nil {
+                await MainActor.run {
+                    self.verifier = SpeakerVerifier()
+                }
+            }
+
+            do {
+                guard let verifier = await self.verifier else { return }
+                let result = try await verifier.verify(audioData: wavData)
+
+                VELog.write("VoiceController: verification result - verified=\(result.verified), score=\(result.score)")
+
+                await MainActor.run {
+                    self.onVerificationResult?(result.verified, result.score)
+
+                    if result.verified {
+                        // Verification passed: transition to listening and start streaming
+                        VELog.write("VoiceController: verification passed, starting transcription")
+                        self.currentState = .listening
+
+                        // Now start streaming audio to Soniox
+                        // (audio capture continues, now routed to Soniox)
+                    } else {
+                        // Verification failed: discard audio and return to idle
+                        VELog.write("VoiceController: verification failed (score=\(result.score)), discarding audio")
+                        self.stop()
+                        self.currentState = .error("Voice not recognized (score: \(String(format: "%.2f", result.score)))")
+                    }
+
+                    // Clear verification buffer
+                    self.verificationBuffer = Data()
+                    self.verificationStartTime = nil
+                }
+
+            } catch {
+                VELog.write("VoiceController: verification error - \(error.localizedDescription)")
+
+                await MainActor.run {
+                    self.stop()
+                    self.currentState = .error("Verification service unavailable: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func createWAVData(pcmData: Data) -> Data {
+        var data = Data()
+
+        let audioDataSize = UInt32(pcmData.count)
+        let audioFormat: UInt16 = 1 // PCM
+        let sampleRate: Int32 = 16000
+        let channels: Int16 = 1
+        let bitsPerSample: Int16 = 16
+        let byteRate = UInt32(sampleRate) * UInt32(channels) * UInt32(bitsPerSample / 8)
+        let blockAlign = UInt16(channels) * UInt16(bitsPerSample / 8)
+
+        // RIFF header
+        data.append("RIFF".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: 36 + audioDataSize) { Array($0) })
+        data.append("WAVE".data(using: .ascii)!)
+
+        // fmt chunk
+        data.append("fmt ".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: UInt32(16)) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: audioFormat) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: channels) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: sampleRate) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: byteRate) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: blockAlign) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: bitsPerSample) { Array($0) })
+
+        // data chunk
+        data.append("data".data(using: .ascii)!)
+        data.append(contentsOf: withUnsafeBytes(of: audioDataSize) { Array($0) })
+        data.append(pcmData)
+
+        return data
     }
 }

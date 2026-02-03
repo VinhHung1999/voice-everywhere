@@ -56,6 +56,7 @@ private final class SettingsContentView: NSView {
     private let recordButton: NSButton
     private let progressLabel: NSTextField
     private let clearEnrollmentButton: NSButton
+    private let verificationToggle: NSButton
 
     private var _termsTV: NSTextView!
     private var _generalTV: NSTextView!
@@ -88,6 +89,7 @@ private final class SettingsContentView: NSView {
         recordButton = NSButton(title: "Record Sample", target: nil, action: nil)
         progressLabel = NSTextField(labelWithString: "")
         clearEnrollmentButton = NSButton(title: "Clear & Re-enroll", target: nil, action: nil)
+        verificationToggle = NSButton(checkboxWithTitle: "Enable speaker verification", target: nil, action: nil)
 
         super.init(frame: frame)
 
@@ -290,6 +292,15 @@ private final class SettingsContentView: NSView {
         clearEnrollmentButton.target = self
         clearEnrollmentButton.action = #selector(didClearEnrollment)
         addSubview(clearEnrollmentButton)
+        y -= 36
+
+        // ── Verification Toggle ──
+        verificationToggle.frame = NSRect(x: m, y: y - 20, width: iw, height: 20)
+        verificationToggle.font = NSFont.systemFont(ofSize: 12)
+        verificationToggle.state = UserDefaults.standard.bool(forKey: "speaker_verification_enabled") ? .on : .off
+        verificationToggle.target = self
+        verificationToggle.action = #selector(verificationToggleChanged)
+        addSubview(verificationToggle)
 
         // Set initial enabled state of LLM fields
         llmToggleChanged()
@@ -344,10 +355,18 @@ private final class SettingsContentView: NSView {
 
         savePresets()
 
+        // Save verification setting
+        UserDefaults.standard.set(verificationToggle.state == .on, forKey: "speaker_verification_enabled")
+
         saveButton.title = "Saved!"
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.saveButton.title = "Save"
         }
+    }
+
+    @objc private func verificationToggleChanged() {
+        // Toggle state changed - no immediate action needed
+        // Will be saved when user clicks Save button
     }
 
     // MARK: - Preset Management
