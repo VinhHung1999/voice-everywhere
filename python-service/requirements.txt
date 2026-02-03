@@ -3,7 +3,16 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 
 # ML dependencies for speaker verification
+# Version compatibility tested on macOS 2026-02-03
+# speechbrain 1.0.2 requires torchaudio with list_audio_backends() function
+# torchaudio >=2.10.0 removed this function - must use compatible versions
+
 speechbrain==1.0.2
-torch==2.5.1
-torchaudio==2.5.1
+torch==2.5.0
+torchaudio==2.5.0
 numpy==1.26.4
+
+# Alternative if above versions unavailable:
+# speechbrain>=1.0.3 (if released)
+# torch==2.4.1
+# torchaudio==2.4.1

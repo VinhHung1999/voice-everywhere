@@ -21,16 +21,28 @@ Production FastAPI service using SpeechBrain ECAPA-TDNN for speaker verification
 
 ## Installation
 
-### 1. Install Dependencies
+### Quick Start (Automated)
+
+```bash
+cd python-service
+./setup.sh
+```
+
+This creates a virtual environment and installs all dependencies (~2GB, 5-10 minutes).
+
+**See:** `QUICKSTART.md` for step-by-step guide
+
+### Manual Installation
 
 ```bash
 cd python-service
 
-# Using pip
-pip3 install -r requirements.txt
+# Create virtual environment (required on macOS Sonoma+)
+python3 -m venv venv
+source venv/bin/activate
 
-# Or using uv (recommended)
-uv pip install -r requirements.txt
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 **Dependencies:**
@@ -38,11 +50,14 @@ uv pip install -r requirements.txt
 - uvicorn[standard]==0.34.0
 - python-multipart==0.0.20
 - speechbrain==1.0.2
-- torch==2.5.1
-- torchaudio==2.5.1
+- torch>=2.6.0 (updated for compatibility)
+- torchaudio>=2.6.0 (updated for compatibility)
 - numpy==1.26.4
 
-**Note:** First run will download the ECAPA-TDNN model (~80MB) to `pretrained_models/`.
+**Important Notes:**
+- Virtual environment is **required** on macOS Sonoma+ (PEP 668)
+- First run downloads ECAPA-TDNN model (~80MB) to `pretrained_models/`
+- Total installation size: ~2GB
 
 ---
 
@@ -50,7 +65,16 @@ uv pip install -r requirements.txt
 
 ### Start Service
 
+**Option 1: Using start script (Recommended)**
+
 ```bash
+./start.sh
+```
+
+**Option 2: Manual start**
+
+```bash
+source venv/bin/activate
 uvicorn verify_service:app --port 8765 --log-level info
 ```
 
@@ -65,6 +89,8 @@ Expected startup output:
 ```
 
 Service will be available at: `http://localhost:8765`
+
+**Stop service:** Press `Ctrl+C`
 
 ---
 
