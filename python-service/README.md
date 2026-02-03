@@ -49,9 +49,9 @@ pip install -r requirements.txt
 - fastapi==0.115.6
 - uvicorn[standard]==0.34.0
 - python-multipart==0.0.20
-- speechbrain==1.0.2
-- torch>=2.6.0 (updated for compatibility)
-- torchaudio>=2.6.0 (updated for compatibility)
+- speechbrain==1.0.3
+- torch==2.8.0 (pinned - last version compatible with speechbrain)
+- torchaudio==2.8.0 (pinned - last version with list_audio_backends())
 - numpy==1.26.4
 
 **Important Notes:**

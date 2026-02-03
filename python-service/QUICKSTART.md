@@ -87,11 +87,15 @@ curl http://localhost:8765/health
 ./setup.sh
 ```
 
-### Error: "torch not available for 2.5.1"
+### Error: "torch 2.5.0 not available" or "list_audio_backends not found"
 
-**Problem:** torch 2.5.1 not available on PyPI
+**Problem:**
+- torch 2.5.0 doesn't exist on PyPI
+- torchaudio 2.9.0+ removed `list_audio_backends()` function that speechbrain needs
 
-**Solution:** Updated to torch>=2.6.0 (already fixed in requirements.txt)
+**Solution:**
+- Use torch==2.8.0 + torchaudio==2.8.0 (last compatible versions)
+- Already fixed in requirements.txt
 
 ### Error: "command not found: uvicorn"
 
