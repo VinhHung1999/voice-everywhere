@@ -1,6 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
+requests>=2.31.0
 
 # ML dependencies for speaker verification
 # Version compatibility tested on macOS 2026-02-03
