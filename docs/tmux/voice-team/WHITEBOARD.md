@@ -1,7 +1,8 @@
 # Team Whiteboard
 
-**Sprint:** Sprint 1
-**Goal:** Add Speaker Recognition Feature - Phase 1 MVP
+**Sprint:** Sprint 2 🚀 IN PROGRESS
+**Goal:** Continuous Speaker Verification & Real-time Filtering
+**Started:** 2026-02-03 13:50
 
 ---
 
@@ -9,22 +10,45 @@
 
 | Role | Status | Current Task | Last Update |
 |------|--------|--------------|-------------|
-| PO   | Active | Sprint Planning | 10:52 |
-| SM   | Active | Facilitating | 10:49 |
-| Coder | Working | STORY-001: Swift ↔ Python Research | 10:53 |
+| PO   | Active | Sprint 2 planning complete | 13:50 |
+| SM   | Active | Coordinating feasibility assessment | 13:50 |
+| Coder | Done | STORY-008 complete (077a4a5) | 14:00 |
 | Tester | Idle   | Not initialized | - |
+
+---
+
+## Sprint 2 Stories
+
+### STORY-008: [P1] Continuous Speaker Verification During Recording
+**Status:** 🚀 IN PROGRESS (Approved by Boss 13:55)
+**Assignee:** Coder
+**Estimate:** 11 hours
+**Description:** Verify speaker continuously (every 1s segment), not just at start
+**Boss Requirement:** "Verify kiểu liên tục trong lúc tôi nói"
+**Technical Approach:** Fixed 1s chunks, async verification
+
+### STORY-009: [P1] Real-time Speaker Filtering with Pause/Resume
+**Status:** 📋 TODO (Blocked by STORY-008)
+**Assignee:** Coder
+**Estimate:** 8 hours
+**Description:** Pause transcription when non-Boss voice detected, auto-resume when Boss returns
+**Boss Requirement:** "Pause và resume khi lại là giọng boss"
+**Boss Clarification:** NO need to press hotkey again - auto resume!
 
 ---
 
 ## Today's Progress
 
-### Coder
-- 11:01: Started STORY-001 research, read references
-- 11:01: Deep research on 3 approaches in progress (ETA ~30min)
-- 11:04: Research complete, synthesizing findings into documentation
+### PO
+- 13:50: Created STORY-008 and STORY-009 in PRODUCT_BACKLOG.md
+- 13:50: Sprint 2 planning complete
+- 13:50: Awaiting team estimates and technical assessment
 
-### Tester
-- [Update here]
+### Coder
+- [Awaiting Sprint 2 kickoff]
+
+### SM
+- [Awaiting Sprint 2 kickoff]
 
 ---
 
@@ -32,33 +56,47 @@
 
 | Role | Blocker | Reported | Status |
 |------|---------|----------|--------|
-| | | | |
+| - | No blockers yet | - | - |
 
 ---
 
-## Code Review Tracking
+## Technical Questions for Coder
 
-| Story | Last Reviewed Commit | Date | Status |
-|-------|---------------------|------|--------|
-| | | | |
+1. **Segmentation approach:** VAD-based or fixed 1s chunks?
+2. **Soniox pause/resume:** Close/reopen connection or send silence?
+3. **Buffer management:** How to queue segments awaiting verification?
+4. **Performance impact:** Estimate overhead of continuous verification
+5. **Feasibility:** Can we achieve pause/resume without breaking transcription?
 
 ---
 
 ## Notes
 
-**Sprint 1 Planning (2026-02-03 10:52):**
-- Boss requested: Speaker recognition feature for VoiceEverywhere
-- Research reference: personal-voice-recognition-noisy-environment.md
-- Product Backlog created with 7 stories (PRODUCT_BACKLOG.md)
-- Phase 1 MVP: Stories 1-4 (P0-P1 priority)
-- Critical first task: Swift ↔ Python integration architecture (STORY-001)
+**Sprint 2 Context:**
+- Boss approved Phase 1 MVP: "Ngon rồi á"
+- Sprint 1 delivered: 4/4 stories, 10+ fixes
+- Sprint 2 focus: Real-time continuous verification (more complex!)
 
-**Backlog Summary:**
-- STORY-001 [P0]: Research Swift ↔ Python integration
-- STORY-002 [P0]: Speaker enrollment UI
-- STORY-003 [P0]: Speaker verification backend
-- STORY-004 [P1]: Integrate into voice pipeline
-- STORY-005-007 [P2-P3]: Phase 2 & 3 (future)
+**Key Architecture Questions:**
+- How to segment audio for continuous verification?
+- How to maintain Soniox connection during pauses?
+- Performance: Can we verify every 1s without lag?
+
+**Boss Clarifications:**
+- Verify frequency: "Mỗi script nói" (each speech segment)
+- Behavior: Pause when non-Boss, resume when Boss returns
+- Threshold: 0.35 (tuned in Sprint 1)
+
+---
+
+## Sprint 1 Closure (2026-02-03 13:45)
+
+**DELIVERED:**
+- ✅ All 4 Phase 1 stories completed and accepted
+- ✅ 10+ critical fixes applied
+- ✅ Boss tested and approved ("Ngon rồi á")
+- ✅ Performance: <20ms verification latency
+- ✅ Threshold tuned to 0.35
 
 ---
 

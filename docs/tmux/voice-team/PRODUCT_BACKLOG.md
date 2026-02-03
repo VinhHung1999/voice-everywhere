@@ -136,7 +136,81 @@ As a user, I want to adjust the verification threshold so that I can balance bet
 
 ---
 
-## Future (P3) - Phase 2: Noise Handling
+## High Priority (P1) - Phase 2: Continuous Verification
+
+### STORY-008: [P1] Continuous Speaker Verification During Recording
+
+**Epic:** Speaker Recognition Phase 2 - Real-time Filtering
+
+**User Story:**
+As a user, I want the app to continuously verify my voice throughout the recording, not just at the start, so that if someone else speaks during my recording, their voice is filtered out.
+
+**Boss Requirement:**
+"Tôi muốn nó verify kiểu liên tục trong lúc tôi nói vậy nè. Để mà có những cái người mà nói vào á thì nó sẽ lọc cái chỗ đó ra."
+
+**Acceptance Criteria:**
+- [ ] Verify speaker on each speech segment (NOT just at recording start)
+- [ ] Segmentation: 1-second audio chunks OR Voice Activity Detection
+- [ ] Continue buffering and verifying throughout entire recording
+- [ ] Performance: <20ms verification per segment (maintain current speed)
+- [ ] Log all verification results with timestamps
+- [ ] Handle state: verifying → listening → verifying (continuous loop)
+
+**Technical Notes:**
+- Modify VoiceController.swift state machine for continuous verification
+- Add audio segmentation logic (1s chunks recommended)
+- Queue-based architecture: segment → verify → forward if verified
+- Maintain Soniox connection during pauses
+
+**Dependencies:** STORY-004 (completed)
+
+**Estimate:** TBD by Coder
+
+---
+
+### STORY-009: [P1] Real-time Speaker Filtering with Pause/Resume
+
+**Epic:** Speaker Recognition Phase 2 - Real-time Filtering
+
+**User Story:**
+As a user, when someone else's voice is detected during my recording, the app should pause transcription and resume only when my voice returns, so that only my words are transcribed.
+
+**Boss Requirement:**
+"Pause và resume khi lại là giọng boss"
+
+**Acceptance Criteria:**
+- [ ] When non-Boss voice detected (score < threshold):
+  - Pause Soniox streaming (don't send audio)
+  - Buffer incoming audio
+  - Continue verification on buffered segments
+- [ ] When Boss voice detected again (score > threshold):
+  - Resume Soniox streaming
+  - Send buffered Boss segments
+- [ ] Maintain transcription continuity (no text gaps from user perspective)
+- [ ] Visual feedback: menubar icon shows pause/resume state
+- [ ] Handle rapid speaker changes (debouncing if needed)
+
+**Technical Notes:**
+- Implement Soniox pause/resume logic (may need to close/reopen connection)
+- Audio buffer management for segments awaiting verification
+- State machine: listening → paused (non-Boss) → listening (Boss returns)
+- Consider: Send silence to Soniox vs. actual pause?
+
+**Dependencies:** STORY-008
+
+**Estimate:** TBD by Coder
+
+---
+
+## Medium Priority (P2)
+
+### STORY-005: [P2] Add Threshold Tuning UI
+
+**Status:** COMPLETED (threshold API exists, can set via curl)
+
+---
+
+## Future (P3) - Phase 3: Noise Handling
 
 ### STORY-006: [P3] Add Speech Enhancement for Noisy Environments
 

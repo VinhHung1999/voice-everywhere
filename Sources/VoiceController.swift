@@ -31,7 +31,7 @@ final class VoiceController: @unchecked Sendable {
     // Continuous verification state (STORY-008)
     private var continuousVerificationEnabled = false
     private var continuousVerificationBuffer = Data()
-    private let continuousVerificationChunkSize = 16000 * 2  // 1s at 16kHz 16-bit
+    private let continuousVerificationChunkSize = 16000 * 2 * 3  // 3s at 16kHz 16-bit (Boss request: reduce CPU)
     private var consecutiveNonBossChunks = 0
     private var isVerifyingChunk = false
 
@@ -109,7 +109,7 @@ final class VoiceController: @unchecked Sendable {
         isVerifyingChunk = false
 
         if continuousVerificationEnabled {
-            VELog.write("VoiceController: continuous verification enabled (1s chunks)")
+            VELog.write("VoiceController: continuous verification enabled (3s chunks)")
         }
 
         currentState = .connecting
