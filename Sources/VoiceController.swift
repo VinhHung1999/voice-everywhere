@@ -302,12 +302,17 @@ final class VoiceController: @unchecked Sendable {
                     self.onVerificationResult?(result.verified, result.score)
 
                     if result.verified {
-                        // Verification passed: transition to listening and start streaming
+                        // Verification passed: send buffered audio first, then start streaming
                         VELog.write("VoiceController: verification passed, starting transcription")
-                        self.currentState = .listening
 
-                        // Now start streaming audio to Soniox
-                        // (audio capture continues, now routed to Soniox)
+                        // CRITICAL FIX: Send the buffered 2s audio to Soniox FIRST
+                        // This ensures the first words aren't lost
+                        self.streamer.sendAudio(self.verificationBuffer)
+                        VELog.write("VoiceController: sent \(self.verificationBuffer.count) bytes of buffered audio to Soniox")
+
+                        // Now transition to listening state
+                        // Future audio will stream normally (not buffered)
+                        self.currentState = .listening
                     } else {
                         // Verification failed: discard audio and return to idle
                         VELog.write("VoiceController: verification failed (score=\(result.score)), discarding audio")
