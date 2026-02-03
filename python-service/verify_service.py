@@ -277,24 +277,40 @@ async def verify_speaker(audio: UploadFile = File(...)):
         # Extract embedding
         test_embedding = verifier.encode_batch(waveform)
 
+        # DEBUG: Log shapes before normalization
+        logger.info(f"DEBUG: enrolled_embedding.shape = {enrolled_embedding.shape}")
+        logger.info(f"DEBUG: test_embedding.shape = {test_embedding.shape}")
+        logger.info(f"DEBUG: enrolled_embedding.dim() = {enrolled_embedding.dim()}")
+        logger.info(f"DEBUG: test_embedding.dim() = {test_embedding.dim()}")
+
         # Ensure both embeddings are 2D tensors [1, embedding_dim]
         if enrolled_embedding.dim() == 1:
             enrolled_embedding_2d = enrolled_embedding.unsqueeze(0)
+            logger.info(f"DEBUG: enrolled_embedding unsqueezed to {enrolled_embedding_2d.shape}")
         else:
             enrolled_embedding_2d = enrolled_embedding
+            logger.info(f"DEBUG: enrolled_embedding already 2D: {enrolled_embedding_2d.shape}")
 
         if test_embedding.dim() == 1:
             test_embedding_2d = test_embedding.unsqueeze(0)
+            logger.info(f"DEBUG: test_embedding unsqueezed to {test_embedding_2d.shape}")
         else:
             test_embedding_2d = test_embedding
+            logger.info(f"DEBUG: test_embedding already 2D: {test_embedding_2d.shape}")
 
         # Compute cosine similarity along embedding dimension
         # Result is shape [1], need to extract scalar
-        similarity = torch.nn.functional.cosine_similarity(
+        logger.info(f"DEBUG: Computing cosine_similarity with dim=1")
+        similarity_tensor = torch.nn.functional.cosine_similarity(
             enrolled_embedding_2d,
             test_embedding_2d,
             dim=1
-        ).squeeze().item()  # squeeze() removes batch dim, .item() extracts scalar
+        )
+        logger.info(f"DEBUG: similarity_tensor.shape = {similarity_tensor.shape}")
+        logger.info(f"DEBUG: similarity_tensor = {similarity_tensor}")
+
+        similarity = similarity_tensor.squeeze().item()
+        logger.info(f"DEBUG: similarity (scalar) = {similarity}")
 
         # Verification decision
         verified = similarity > verification_threshold
