@@ -64,6 +64,7 @@ final class SonioxStreamer: NSObject, @unchecked Sendable {
         pendingLanguageHints = languageHints
         pendingContext = context
         isGracefullyStopping = false
+        finalBuffer = ""
 
         let request = URLRequest(url: endpoint)
         task = session.webSocketTask(with: request)

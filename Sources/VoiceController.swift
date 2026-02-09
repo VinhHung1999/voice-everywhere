@@ -264,13 +264,14 @@ final class VoiceController: @unchecked Sendable {
                 if case .verifying = self.currentState {
                     self.verificationBuffer.append(data)
                 } else if case .listening = self.currentState, self.continuousVerificationEnabled {
-                    // STORY-008: Continuous verification mode
-                    // Buffer audio in 1s chunks and verify each chunk
-                    self.continuousVerificationBuffer.append(data)
+                    // BUG-002-v2: Stream audio to Soniox immediately (prevents burst-gap 'aa' artifacts)
+                    // Previously, audio was only sent after 3s verification — creating gaps that
+                    // Soniox interpreted as utterance boundaries, producing 'aa' at each onset.
+                    self.streamer.sendAudio(data)
 
-                    // Check if chunk is complete (1 second)
+                    // Also buffer a copy for speaker verification
+                    self.continuousVerificationBuffer.append(data)
                     if self.continuousVerificationBuffer.count >= self.continuousVerificationChunkSize {
-                        // Verify and forward chunk asynchronously
                         Task {
                             await self.verifyAndForwardChunk()
                         }
@@ -405,27 +406,29 @@ final class VoiceController: @unchecked Sendable {
 
             await MainActor.run {
                 if result.verified {
-                    // Boss's voice - send chunk to Soniox (automatic RESUME)
-                    self.streamer.sendAudio(chunkData)
+                    // BUG-002-v2: Audio already streamed to Soniox in real-time
                     self.consecutiveNonBossChunks = 0
-
-                    VELog.write("VoiceController: continuous verification PASSED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms) - sent to Soniox")
+                    VELog.write("VoiceController: continuous verification PASSED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms)")
                 } else {
-                    // Non-Boss voice - drop chunk (automatic PAUSE)
+                    // Non-Boss voice detected — audio already sent to Soniox (trade-off for no 'aa')
                     self.consecutiveNonBossChunks += 1
+                    VELog.write("VoiceController: continuous verification REJECTED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms) - consecutive: \(self.consecutiveNonBossChunks)")
 
-                    VELog.write("VoiceController: continuous verification REJECTED (score=\(String(format: "%.2f", result.score)), \(Int(verifyDuration))ms) - paused (consecutive: \(self.consecutiveNonBossChunks))")
+                    // Stop recording after 2 consecutive non-boss chunks (~6s)
+                    if self.consecutiveNonBossChunks >= 2 {
+                        VELog.write("VoiceController: stopping — persistent non-boss speaker detected")
+                        self.stop()
+                    }
                 }
 
                 self.isVerifyingChunk = false
             }
 
         } catch {
-            VELog.write("VoiceController: continuous verification error - \(error.localizedDescription), sending chunk anyway (fallback)")
+            VELog.write("VoiceController: continuous verification error - \(error.localizedDescription)")
 
             await MainActor.run {
-                // Fallback: send chunk on verification error
-                self.streamer.sendAudio(chunkData)
+                // BUG-002-v2: Audio already streamed to Soniox, just reset flag
                 self.isVerifyingChunk = false
             }
         }
