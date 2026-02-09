@@ -192,24 +192,28 @@ final class VoiceController: @unchecked Sendable {
             currentState = .connecting
         case .streaming:
             DispatchQueue.main.async { [weak self] in
-                self?.startAudio()
-
-                // Check if speaker verification is enabled
-                let verificationEnabled = UserDefaults.standard.bool(forKey: "speaker_verification_enabled")
-
-                if verificationEnabled {
-                    // Enter verifying state, buffer audio first
-                    self?.currentState = .verifying
-                    self?.verificationBuffer = Data()
-                    self?.verificationStartTime = Date()
-                    self?.startVerificationTimer()
-                    VELog.write("VoiceController: entering verification mode")
-                } else {
-                    // Skip verification, go straight to listening
-                    self?.currentState = .listening
-                }
-
+                // BUG-002 fix: Play Tink BEFORE starting mic so it isn't captured
                 NSSound(named: "Tink")?.play()
+
+                // Brief delay to let the sound finish before mic activates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    self?.startAudio()
+
+                    // Check if speaker verification is enabled
+                    let verificationEnabled = UserDefaults.standard.bool(forKey: "speaker_verification_enabled")
+
+                    if verificationEnabled {
+                        // Enter verifying state, buffer audio first
+                        self?.currentState = .verifying
+                        self?.verificationBuffer = Data()
+                        self?.verificationStartTime = Date()
+                        self?.startVerificationTimer()
+                        VELog.write("VoiceController: entering verification mode")
+                    } else {
+                        // Skip verification, go straight to listening
+                        self?.currentState = .listening
+                    }
+                }
             }
         case .finishing:
             currentState = .finishing
