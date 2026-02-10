@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Memory
+[Memory](.claude/memory/README.md)
+
 ## Project Overview
 
 VoiceEverywhere is a native macOS menubar application (Swift/SwiftUI) that captures voice input and converts it to text in real-time using the Soniox speech-to-text API, then types the recognized text into any focused text field via the Accessibility API. Supports Vietnamese and English language identification. Optional LLM post-processing via xAI API can rewrite/translate/format the recognized text before typing. The app runs as a menubar-only app (no dock icon) with a Settings window for API keys, context, and format presets.
@@ -79,3 +82,16 @@ All settings are configured via the Settings window (menubar → Settings) and r
 - **App type:** LSUIElement (menubar-only, no dock icon)
 - **Sleep prevention:** Uses ProcessInfo.beginActivity() during recording
 - **Sound feedback:** Tink on start, Blow on stop
+
+## Project Memory
+
+Project memories are stored in `.claude/memory/`. Use `--project-recall` before complex tasks, `--project-store` after meaningful work.
+
+| Topic | Content |
+|-------|---------|
+| [bugs-and-lessons](.claude/memory/bugs-and-lessons/README.md) | Bugs encountered, root causes, fixes, and lessons learned |
+| [sprint-history](.claude/memory/sprint-history/README.md) | Sprint summaries, delivered features, team velocity |
+| [team](.claude/memory/team/README.md) | Team roles, workflow, collaboration patterns |
+| [design-decisions](.claude/memory/design-decisions/README.md) | UI/UX decisions, design rationale, interaction patterns |
+| [api-design](.claude/memory/api-design/README.md) | API endpoints, protocols, integration patterns |
+| [architecture](.claude/memory/architecture/README.md) | System structure, module boundaries, key architectural patterns |

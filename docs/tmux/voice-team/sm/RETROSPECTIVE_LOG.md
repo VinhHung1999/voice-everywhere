@@ -69,6 +69,93 @@
 
 ---
 
+## Sprint 2 Retrospective
+
+**Date:** 2026-02-03
+**Duration:** ~15 minutes (13:50 → 14:05)
+**Status:** CLOSED ✅
+
+### What Went Well
+- Exceptional velocity: 19h estimated → <1h actual
+- Quick pivot on performance issue (30%→10% CPU)
+- Immediate response to Boss feedback
+- Clean implementation of continuous verification
+- Auto pause/resume working perfectly
+
+### What Could Be Improved
+- Initial 1s interval caused high CPU - should test performance earlier
+- Could have anticipated CPU impact of continuous verification
+
+### Sprint 2 Metrics
+| Metric | Value |
+|--------|-------|
+| Stories Completed | 2/2 (100%) |
+| Estimated Time | 19 hours |
+| Actual Time | <1 hour |
+| Performance Fix | 30%→10% CPU |
+| Boss Approval | "Tôi thấy cũng ngon rồi" ✅ |
+
+### Commits
+- 077a4a5: feat(STORY-008): Continuous speaker verification
+- 5b37600: perf: Reduce CPU usage (1s→3s interval)
+
+---
+
+## Project Summary (Both Sprints)
+
+| Sprint | Stories | Status | Boss Approval |
+|--------|---------|--------|---------------|
+| Sprint 1 | 4 | ✅ Complete | "Ngon rồi á" |
+| Sprint 2 | 2 | ✅ Complete | "Tôi thấy cũng ngon rồi" |
+| **Total** | **6** | **✅ Complete** | **Very Satisfied** |
+
+**Key Achievements:**
+- Speaker enrollment UI
+- Python verification backend (SpeechBrain ECAPA-TDNN)
+- Swift ↔ Python integration
+- Continuous verification (3s intervals)
+- Auto pause/resume on speaker change
+- 10+ critical bug fixes
+- Performance optimization
+
+**Team Performance:** OUTSTANDING!
+
+---
+
+## BOSS FEEDBACK - CRITICAL IMPROVEMENT NEEDED
+
+**Boss Message:** "Be Better next time"
+**Issue:** "tốn thời gian vcl" (wasted time on rework)
+
+### Problem Identified
+- Tester role was IDLE entire project
+- UI bugs reached Boss testing phase:
+  - Missing scroll in Settings window
+  - Hidden enrollment button
+  - Multiple fix cycles
+- Caused unnecessary rework and wasted Boss's time
+
+### Corrective Action (MANDATORY)
+| # | Action | Status |
+|---|--------|--------|
+| 1 | Initialize Tester from Sprint 1 | 📋 Next project |
+| 2 | Tester tests UI/UX BEFORE PO acceptance | 📋 Next project |
+| 3 | Block acceptance if UI bugs found | 📋 Next project |
+| 4 | Tester reports to SM/Coder first | 📋 Next project |
+
+### Process Change
+**OLD:** Coder → PO → Boss
+**NEW:** Coder → Tester → SM → PO → Boss
+
+### Documentation Created
+- docs/tmux/voice-team/TESTER_ROLE.md
+- UI testing checklist
+- Bug reporting protocol
+
+**SM Commitment:** Will ensure Tester is active from Sprint 1 of next project.
+
+---
+
 ## Template for Future Sprints
 
 ```markdown

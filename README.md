@@ -1,100 +1,134 @@
 # VoiceEverywhere
 
-Ứng dụng menubar trên macOS giúp nhập văn bản bằng giọng nói vào **bất kỳ ô input nào**. Nhấn hotkey, nói, text tự động được gõ vào nơi con trỏ đang focus. Hỗ trợ nhận dạng tiếng Việt và tiếng Anh realtime.
+A native macOS menubar app that lets you **type with your voice** in any text field. Press a hotkey, speak, and your words appear wherever your cursor is — no copy-paste needed. Supports real-time Vietnamese and English recognition with automatic language detection.
 
-## Tính năng
+## Features
 
-- Nhận dạng giọng nói realtime qua Soniox API (model `stt-rt-v3`)
-- Tự nhận biết tiếng Việt / tiếng Anh
-- Gõ text trực tiếp vào app đang focus (không cần copy-paste)
-- Hotkey toàn cục: `Ctrl + Option + Space` (⌃⌥Space)
-- **LLM post-processing** qua xAI API — tự động chỉnh sửa, dịch, hoặc format text sau khi nhận dạng
-- **Format Presets** — tạo và quản lý nhiều preset format instructions (ví dụ: "Formal English", "Casual Vietnamese"), chọn nhanh qua dropdown
-- Cấu hình API key và context nhận dạng trong cửa sổ Settings
-- Âm thanh phản hồi khi bật/tắt ghi âm
-- Chạy trên menubar, không chiếm dock
+- **Real-time speech-to-text** via Soniox API (`stt-rt-v3` model)
+- **Works everywhere** — types directly into any focused app using the Accessibility API
+- **Bilingual** — auto-detects Vietnamese and English
+- **Speaker verification** — enroll your voice and filter out other speakers (ECAPA-TDNN)
+- **LLM post-processing** — optionally rewrite, translate, or format text via xAI API before typing
+- **Format presets** — save and switch between named instruction sets (e.g. "Formal English", "Meeting Notes")
+- **Global hotkey** — `Ctrl + Option + Space` to toggle recording from anywhere
+- **Menubar-only** — lightweight, no dock icon, runs quietly in the background
 
-## Yêu cầu
+## Requirements
 
-- macOS 13 trở lên
+- macOS 13+
 - Xcode Command Line Tools (`xcode-select --install`)
-- API key từ [Soniox](https://soniox.com) (Dashboard → API keys)
+- [Soniox](https://soniox.com) API key
 
-## Cài đặt & Chạy
+## Quick Start
 
 ```bash
 git clone git@github.com:VinhHung1999/voice-everywhere.git
 cd voice-everywhere
 
-# Build app bundle
+# Build the app
 ./scripts/build_app.sh
 
-# Mở app
+# Launch
 open dist/VoiceEverywhere.app
 ```
 
-Build debug:
-```bash
-./scripts/build_app.sh debug
-```
+Or download the latest release from [Releases](https://github.com/VinhHung1999/voice-everywhere/releases).
 
-## Cấu hình
+## Usage
 
-Click vào icon mic trên menubar → **Settings** để mở cửa sổ cài đặt.
+1. Click the **mic icon** in the menubar or press `Ctrl + Option + Space` to start recording
+2. Speak — text is recognized in real-time and typed into the focused text field
+3. Press `Ctrl + Option + Space` again to stop
 
-### Soniox (Speech-to-Text)
+### Menubar Status Icons
 
-1. **Soniox API Key** — Nhập API key từ Soniox (bắt buộc)
-2. **Context Terms** — Các từ/thuật ngữ đặc biệt cách nhau bằng dấu phẩy (ví dụ: `SwiftUI, Soniox, CoreML`) — giúp nhận dạng chính xác hơn
-3. **General Context** — Mô tả ngữ cảnh chung (ví dụ: `Cuộc họp về iOS development`)
+| Icon | State |
+|------|-------|
+| `mic` | Ready |
+| `mic.fill` | Recording |
+| `mic.badge.xmark` | Connecting / Error |
+
+## Configuration
+
+Click the mic icon in the menubar → **Settings** to open the configuration window.
+
+### Speech-to-Text (Soniox)
+
+| Setting | Description |
+|---------|-------------|
+| **API Key** | Your Soniox API key (required) |
+| **Context Terms** | Comma-separated terms for better recognition (e.g. `SwiftUI, Soniox, CoreML`) |
+| **General Context** | Free-text context description (e.g. `iOS development meeting`) |
+
+### Speaker Verification
+
+| Setting | Description |
+|---------|-------------|
+| **Enable** | Toggle speaker verification on/off |
+| **Enroll** | Record 3–5 voice samples to create your voice profile |
+| **Threshold** | Adjust verification sensitivity (default: 0.25) |
+
+When enabled, only your voice is transcribed — other speakers are filtered out in real-time.
 
 ### LLM Post-Processing (xAI)
 
-Bật **Enable LLM post-processing** để text sau khi nhận dạng được gửi qua xAI API xử lý thêm (chỉnh grammar, dịch, format...) trước khi gõ ra.
+Enable **LLM post-processing** to have recognized text refined by an LLM before typing.
 
-4. **xAI API Key** — API key từ xAI
-5. **Model** — Model sử dụng (mặc định: `grok-3-mini-fast`)
-6. **Output Language** — Ngôn ngữ đầu ra: English, Vietnamese, hoặc "As spoken (no LLM)" để tắt
-7. **Format Preset** — Chọn preset chứa format instructions cho LLM. Dùng các nút:
-   - **+** — Tạo preset mới (nhập tên + instructions)
-   - **−** — Xóa preset đang chọn
-   - **Edit** — Sửa nội dung preset đang chọn
-   - Chọn **(None)** để không dùng format instructions
+| Setting | Description |
+|---------|-------------|
+| **xAI API Key** | Your xAI API key |
+| **Model** | LLM model (default: `grok-3-mini-fast`) |
+| **Output Language** | English, Vietnamese, or "As spoken (no LLM)" |
+| **Format Preset** | Select a preset with custom formatting instructions |
 
-Nhấn **Save** để lưu. Cấu hình được giữ lại giữa các lần mở app.
+Use **+** / **−** / **Edit** to manage format presets. Select **(None)** to disable.
 
-## Sử dụng
+## Permissions
 
-1. Click icon **mic** trên menubar hoặc nhấn `Ctrl + Option + Space` để bắt đầu ghi âm
-2. Nói — text được nhận dạng realtime và tự động gõ vào nơi con trỏ đang focus
-3. Nhấn lại `Ctrl + Option + Space` để dừng
+The app requires two macOS permissions:
 
-**Trạng thái icon menubar:**
-| Icon | Trạng thái |
-|------|-----------|
-| 🎤 `mic` | Sẵn sàng (idle) |
-| 🎤 `mic.fill` | Đang ghi âm |
-| 🎤 `mic.badge.xmark` | Đang kết nối / Lỗi |
+1. **Microphone** — prompted on first launch. If denied: System Settings → Privacy & Security → Microphone
+2. **Accessibility** — required for typing into other apps. System Settings → Privacy & Security → Accessibility → enable VoiceEverywhere
 
-## Quyền truy cập cần cấp
+## Architecture
 
-App sẽ hỏi quyền khi chạy lần đầu:
+```
+Hotkey → AudioCapture (16kHz PCM) → SonioxStreamer (WebSocket) → recognized text
+                                          ↓
+                            [optional] SpeakerVerifier (ECAPA-TDNN)
+                                          ↓
+                            [optional] LLMProcessor (xAI API)
+                                          ↓
+                                    TextInjector (CGEvent)
+                                          ↓
+                                    focused text field
+```
 
-1. **Microphone** — cho phép khi được hỏi. Nếu lỡ từ chối: System Settings → Privacy & Security → Microphone
-2. **Accessibility** — cần để app gõ phím vào ứng dụng khác. Vào System Settings → Privacy & Security → Accessibility → bật VoiceEverywhere
+Built with Swift/SwiftUI as a single SwiftPM executable — no Xcode project required.
 
-## Thay đổi hotkey
+| Module | Purpose |
+|--------|---------|
+| `AppDelegate` | Menubar UI (NSStatusItem) |
+| `VoiceController` | State machine & orchestration |
+| `AudioCapture` | AVAudioEngine → 16kHz mono PCM |
+| `SonioxStreamer` | WebSocket client for Soniox RT API |
+| `SpeakerVerifier` | Speaker verification via Python service |
+| `LLMProcessor` | xAI API client for post-processing |
+| `TextInjector` | Accessibility API keyboard simulation |
+| `HotKeyManager` | Global hotkey via Carbon framework |
 
-Sửa `keyCode` và `modifiers` trong `Sources/HotKeyManager.swift`, rồi build lại.
+## Building
 
-## Chi tiết kỹ thuật
+```bash
+# Release build (creates dist/VoiceEverywhere.app)
+./scripts/build_app.sh
 
-- **Ngôn ngữ:** Swift (SwiftPM, không cần Xcode GUI)
-- **Soniox model:** `stt-rt-v3`, WebSocket streaming
-- **LLM:** xAI API (`grok-3-mini-fast` mặc định), tùy chọn post-processing
-- **Audio:** PCM signed 16-bit LE, 16kHz, mono
-- **Language hints:** `["vi", "en"]` với auto language identification
-- **Log file:** `~/Library/Logs/VoiceEverywhere.log`
+# Debug build
+./scripts/build_app.sh debug
+
+# Direct Swift build (no app bundle)
+swift build -c release
+```
 
 ## License
 

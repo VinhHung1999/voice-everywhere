@@ -50,7 +50,31 @@
 
 | ID | Date | Observation | Source | Impact |
 |----|------|-------------|--------|--------|
-| OBS-001 | | | | |
+| OBS-001 | 2026-02-03 | Tester idle entire project - UI bugs reached Boss | Boss feedback | HIGH |
+| OBS-002 | 2026-02-03 | Missing scroll, hidden buttons caused rework | Sprint 1 bugs | HIGH |
+
+---
+
+## CRITICAL: Boss Feedback (2026-02-03)
+
+**Boss Message:** "Be Better next time"
+**Issue:** "tốn thời gian vcl" - wasted time on rework
+
+**Root Cause:**
+- Tester was never initialized
+- UI bugs (scroll, buttons) reached Boss testing
+- Multiple fix cycles for UI issues
+
+**Corrective Action (MANDATORY for next project):**
+1. ✅ Initialize Tester agent from Sprint 1
+2. ✅ Tester MUST test UI/UX before PO acceptance
+3. ✅ Block story acceptance if UI bugs found
+4. ✅ Tester reports to SM/Coder BEFORE PO sees it
+
+**Documentation Created:**
+- docs/tmux/voice-team/TESTER_ROLE.md
+- UI testing checklist
+- Bug reporting protocol
 
 ---
 

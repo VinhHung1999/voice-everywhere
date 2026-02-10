@@ -113,16 +113,16 @@ fi
 echo "Starting Claude Code in all panes..."
 
 # PO - Sonnet
-tmux send-keys -t $SESSION_NAME:0.0 "cd $PROJECT_ROOT && claude --model sonnet" C-m
+tmux send-keys -t $SESSION_NAME:0.0 "cd $PROJECT_ROOT && claude" C-m
 
 # SM - Opus (Scrum Master needs high reasoning for coordination)
-tmux send-keys -t $SESSION_NAME:0.1 "cd $PROJECT_ROOT && claude --model opus" C-m
+tmux send-keys -t $SESSION_NAME:0.1 "cd $PROJECT_ROOT && claude" C-m
 
 # Coder - Sonnet
-tmux send-keys -t $SESSION_NAME:0.2 "cd $PROJECT_ROOT && claude --model sonnet" C-m
+tmux send-keys -t $SESSION_NAME:0.2 "cd $PROJECT_ROOT && claude" C-m
 
 # Tester - Haiku (testing tasks)
-tmux send-keys -t $SESSION_NAME:0.3 "cd $PROJECT_ROOT && claude --model haiku" C-m
+tmux send-keys -t $SESSION_NAME:0.3 "cd $PROJECT_ROOT && claude" C-m
 
 # 10. Wait for Claude Code to start
 echo "Waiting 20 seconds for Claude Code instances..."

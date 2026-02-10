@@ -1,7 +1,7 @@
 # Product Backlog - VoiceEverywhere
 
 **Owner:** Product Owner (PO)
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-06
 
 ---
 
@@ -133,6 +133,144 @@ As a user, I want to adjust the verification threshold so that I can balance bet
 - [ ] Default: 0.25
 
 **Estimate:** TBD by Coder
+
+---
+
+## Critical Bugs (P0)
+
+### BUG-001: [P0] Transcription Chunks Missing Spaces
+
+**Type:** Bug (Production issue)
+
+**Reported By:** Boss Hùng (2026-02-03 14:15)
+
+**Description:**
+When speaking with pauses, transcribed words from different chunks concatenate without spaces.
+
+**Example:**
+- User says: "cập nhật lại cái" [pause 3s] "Cái skill"
+- Transcribed: "cập nhật lại cáiCái skill" ❌
+- Expected: "cập nhật lại cái Cái skill" ✅
+
+**Root Cause:**
+Continuous verification (3s chunks) sends separate audio segments to Soniox. Each chunk transcribed independently. When concatenating transcription results, no space added between chunks.
+
+**Impact:**
+- Severity: HIGH (affects readability)
+- User Experience: Poor (text hard to read)
+- Frequency: Every time user pauses >3s during speech
+
+**Acceptance Criteria:**
+- [ ] Transcription chunks always separated by space
+- [ ] Test case: Speak → Pause 3s → Speak → Result has space
+- [ ] No double spaces (handle existing spaces in chunks)
+- [ ] Works with Vietnamese and English
+
+**Technical Notes:**
+- Location: Likely in VoiceController.swift or Soniox streaming logic
+- Fix: Add space when concatenating transcription strings
+- Edge case: Check if chunk already ends/starts with space
+
+**Priority:** P0 (Critical - affects core functionality)
+
+**Estimate:** 1-2 hours
+
+**Dependencies:** None
+
+**Related:** STORY-008 (Continuous verification introduced this bug)
+
+**Sprint:** Sprint 3 (Boss decision: "Chỗ này để sprint 3 nha" - 2026-02-03 14:20)
+
+**Status:** ✅ FIXED (Sprint 3, commit 3be3c58)
+
+---
+
+### BUG-002: [P0] "aa" Thừa Ở Đầu Mỗi Transcription
+
+**Type:** Bug (Production issue)
+
+**Reported By:** Boss Hùng (2026-02-06)
+
+**Description:**
+Every time recording starts, the transcription always begins with "aa" before the actual spoken text. Happens regardless of whether speaker verification is enabled or disabled.
+
+**Example:**
+- User says: "alo"
+- Transcribed: "aalo." ❌
+- Expected: "alo." ✅
+
+**Root Cause:**
+In `VoiceController.swift:194-212`, the startup sound "Tink" is played AFTER the microphone starts recording:
+```
+1. startAudio()              ← Mic starts capturing
+2. currentState = .listening  ← Audio streams to Soniox
+3. NSSound("Tink")?.play()   ← Sound plays, mic picks it up
+```
+The mic captures the Tink sound → sends to Soniox → Soniox transcribes it as "aa".
+
+**Impact:**
+- Severity: HIGH (affects every single transcription)
+- User Experience: Poor (extra characters at beginning)
+- Frequency: 100% — every recording session
+
+**Acceptance Criteria:**
+- [ ] No extra characters at beginning of transcription
+- [ ] Test: Press hotkey → say "alo" → result is "alo" (no "aa" prefix)
+- [ ] Startup sound still plays (don't remove feedback)
+- [ ] Works with verification both on and off
+
+**Technical Notes:**
+- Location: `Sources/VoiceController.swift` line 194-212
+- Fix approach: Play Tink sound BEFORE starting mic, or add short delay before starting mic after Tink
+- Consider: Tink duration ~100-200ms, delay mic start accordingly
+- Alternative: Discard first ~200ms of audio after mic starts
+
+**Priority:** P0 (Critical - affects every recording)
+
+**Estimate:** 1 hour
+
+**Dependencies:** None
+
+**Status:** 📋 Ready for Sprint 5
+
+---
+
+## High Priority (P1) - Phase 3: Transcription Storage
+
+### STORY-010: [P1] Setup Transcription Storage Location
+
+**Epic:** Transcription Storage
+
+**User Story:**
+As a user, I want to configure where my transcriptions are saved so that I can keep a record of all voice-to-text output, even before I start recording.
+
+**Boss Requirement:**
+"Nếu không có input thì cài đặt phần lưu trước (setup storage location khi chưa có voice input)"
+
+**Acceptance Criteria:**
+- [ ] Add "Storage" section to Settings window
+- [ ] Allow user to select/configure storage location (folder path)
+- [ ] Default storage location (e.g., ~/Documents/VoiceEverywhere/)
+- [ ] Storage setup works without requiring voice input
+- [ ] Validate selected path is writable
+- [ ] Persist storage location to UserDefaults
+- [ ] Create storage directory if it doesn't exist
+- [ ] Show current storage location and status in Settings
+
+**Technical Notes:**
+- Add to ContextConfigWindow.swift (Settings UI)
+- Use NSOpenPanel for folder selection
+- Store path in UserDefaults (key: `transcription_storage_path`)
+- Validate directory permissions on selection
+- Can be fully developed and tested without microphone
+
+**Priority:** P1
+
+**Estimate:** TBD by Coder
+
+**Dependencies:** None (standalone feature, no voice input needed)
+
+**Status:** 📋 BACKLOG - Candidate for Sprint 4
 
 ---
 
