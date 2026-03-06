@@ -19,16 +19,30 @@ final class TextInjector {
     }
 
     private func typeText(_ text: String) {
-        for character in text where !character.isNewline {
-            guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
-                  let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) else { continue }
+        let pasteboard = NSPasteboard.general
+        let previousContents = pasteboard.string(forType: .string)
 
-            var units = Array(String(character).utf16)
-            down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
-            up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
 
-            down.post(tap: .cghidEventTap)
-            up.post(tap: .cghidEventTap)
+        // Simulate Cmd+V to paste
+        let vKeyCode: CGKeyCode = 9
+        guard let down = CGEvent(keyboardEventSource: nil, virtualKey: vKeyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: nil, virtualKey: vKeyCode, keyDown: false) else {
+            VELog.write("TextInjector: failed to create paste CGEvent")
+            return
+        }
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+
+        // Restore previous clipboard after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            pasteboard.clearContents()
+            if let prev = previousContents {
+                pasteboard.setString(prev, forType: .string)
+            }
         }
     }
 
